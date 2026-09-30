@@ -167,7 +167,7 @@ const Cart = () => {
         </div>
 
         {/* Summary */}
-        <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
+        <aside className="space-y-4 lg:sticky lg:top-36 lg:self-start">
           <div className="card p-5">
             <h2 className="mb-4 flex items-center gap-2 text-sm font-extrabold uppercase tracking-wider"><Tag size={16} /> Coupons</h2>
             {appliedCoupon ? (

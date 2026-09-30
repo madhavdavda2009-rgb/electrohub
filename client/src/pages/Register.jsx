@@ -41,7 +41,7 @@ const Register = () => {
       const res = await api.post('/auth/register', formData);
       localStorage.setItem('token', res.data.data.token);
       setUser(res.data.data.user);
-      toast.success('Welcome to StyleHub!');
+      toast.success('Welcome to ElectroHub!');
       navigate(redirectTo, { replace: true });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Registration failed');
@@ -55,7 +55,7 @@ const Register = () => {
   const strength = passwordStrength(formData.password);
 
   return (
-    <AuthLayout image="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=1000&q=80&auto=format&fit=crop" heading="Join StyleHub" subheading="Unlock exclusive offers, faster checkout and order tracking.">
+    <AuthLayout image="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=1000&q=80&auto=format&fit=crop" heading="Join ElectroHub" subheading="Unlock exclusive offers, faster checkout and order tracking.">
       <h1 className="font-display text-3xl font-semibold">Create account</h1>
       <p className="mt-1 text-sm text-muted">Already have one? <Link to="/login" state={location.state} className="link">Log in</Link></p>
 
@@ -91,12 +91,12 @@ const Register = () => {
             <input id="reg-phone" name="phone" inputMode="tel" autoComplete="tel-national" className="input" value={formData.phone} onChange={handleChange} />
           </div>
           <div>
-            <label htmlFor="reg-gender" className="label">Shop for (optional)</label>
+            <label htmlFor="reg-gender" className="label">Gender (optional)</label>
             <select id="reg-gender" name="gender" className="input" value={formData.gender} onChange={handleChange}>
               <option value="">Select</option>
-              <option value="Men">Men</option>
-              <option value="Women">Women</option>
-              <option value="Unisex">Everyone</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
             </select>
           </div>
         </div>

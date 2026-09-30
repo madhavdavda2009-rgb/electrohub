@@ -1,11 +1,23 @@
 const db = require('../db');
 const { successResponse, errorResponse } = require('../utils/response');
 const { cancelAndRestock } = require('./orderController');
+const { adjustStock, addHistory } = require('../utils/inventory');
 
 const ORDER_STATUSES = ['Pending', 'Confirmed', 'Packed', 'Shipped', 'Delivered', 'Cancelled'];
 const PAYMENT_STATUSES = ['Pending', 'Verifying', 'Paid', 'Pay on Delivery', 'Failed', 'Refund Initiated', 'Refunded', 'Cancelled', 'Not Required'];
 
-const parseProduct = (p) => ({ ...p, colors: JSON.parse(p.colors || '[]'), sizes: JSON.parse(p.sizes || '[]'), images: JSON.parse(p.images || '[]') });
+const parseProduct = (p) => ({ ...p, colors: JSON.parse(p.colors || '[]'), sizes: JSON.parse(p.sizes || '[]'), images: JSON.parse(p.images || '[]'), specs: JSON.parse(p.specs || '{}') });
+
+// Specs arrive as an object or as "Key: Value" lines
+const parseSpecs = (value) => {
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [String(k).trim(), String(v).trim()]).filter(([k, v]) => k && v));
+  const specs = {};
+  String(value || '').split('\n').forEach(line => {
+    const i = line.indexOf(':');
+    if (i > 0) { const k = line.slice(0, i).trim(); const v = line.slice(i + 1).trim(); if (k && v) specs[k] = v; }
+  });
+  return specs;
+};
 const list = (value) => (Array.isArray(value) ? value : String(value || '').split(/[,\n]/)).map(v => String(v).trim()).filter(Boolean);
 const num = (value, fallback = 0) => (value === '' || value === undefined || value === null || Number.isNaN(Number(value)) ? fallback : Number(value));
 
@@ -49,6 +61,7 @@ exports.listProducts = (req, res) => {
     const params = [];
     if (status === 'active') where.push('is_active = 1');
     if (status === 'archived') where.push('is_active = 0');
+    if (status === 'out') where.push('is_active = 1 AND stock = 0');
     if (status === 'low') where.push('is_active = 1 AND stock <= 5');
     if (category) { where.push('category = ?'); params.push(category); }
     if (subcategory) { where.push('subcategory = ?'); params.push(subcategory); }
@@ -82,6 +95,7 @@ const productFields = (body) => {
     colors: JSON.stringify(list(body.colors)),
     sizes: JSON.stringify(list(body.sizes)),
     images: JSON.stringify(list(body.images)),
+    specs: JSON.stringify(parseSpecs(body.specs)),
     is_active: body.is_active === false || body.is_active === 0 || body.is_active === '0' ? 0 : 1,
   };
   const errors = [];
@@ -107,9 +121,10 @@ exports.createProduct = (req, res) => {
     const { data, errors } = productFields(req.body);
     if (errors.length) return errorResponse(res, 400, `Please check: ${errors.join(', ')}`);
     const info = db.prepare(`
-      INSERT INTO products (name, brand, description, category, subcategory, gender, price, discount_percent, stock, rating, rating_count, colors, sizes, images, is_active)
-      VALUES (@name, @brand, @description, @category, @subcategory, @gender, @price, @discount_percent, @stock, @rating, @rating_count, @colors, @sizes, @images, @is_active)
+      INSERT INTO products (name, brand, description, category, subcategory, gender, price, discount_percent, stock, rating, rating_count, colors, sizes, images, specs, is_active)
+      VALUES (@name, @brand, @description, @category, @subcategory, @gender, @price, @discount_percent, 0, @rating, @rating_count, @colors, @sizes, @images, @specs, @is_active)
     `).run(data);
+    if (data.stock > 0) adjustStock(info.lastInsertRowid, data.stock, 'Initial stock', 'Product created');
     return successResponse(res, 201, parseProduct(db.prepare('SELECT * FROM products WHERE id = ?').get(info.lastInsertRowid)), 'Product created');
   } catch (error) {
     console.error(error);
@@ -128,9 +143,10 @@ exports.updateProduct = (req, res) => {
     db.prepare(`
       UPDATE products SET name = @name, brand = @brand, description = @description, category = @category, subcategory = @subcategory,
         gender = @gender, price = @price, discount_percent = @discount_percent, stock = @stock, rating = @rating, rating_count = @rating_count,
-        colors = @colors, sizes = @sizes, images = @images, is_active = @is_active
+        colors = @colors, sizes = @sizes, images = @images, specs = @specs, is_active = @is_active
       WHERE id = @id
-    `).run({ ...data, id: existing.id });
+    `).run({ ...data, stock: existing.stock, id: existing.id });
+    if (data.stock !== existing.stock) adjustStock(existing.id, data.stock - existing.stock, 'Manual edit', 'Product form');
     return successResponse(res, 200, parseProduct(db.prepare('SELECT * FROM products WHERE id = ?').get(existing.id)), 'Product updated');
   } catch (error) {
     console.error(error);
@@ -286,21 +302,31 @@ exports.updateOrder = (req, res) => {
   try {
     const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
     if (!order) return errorResponse(res, 404, 'Order not found');
-    const { status, payment_status } = req.body;
+    const { status, payment_status, courier, tracking_number } = req.body;
     if (status && !ORDER_STATUSES.includes(status)) return errorResponse(res, 400, 'Invalid order status');
     if (payment_status && !PAYMENT_STATUSES.includes(payment_status)) return errorResponse(res, 400, 'Invalid payment status');
     if (order.status === 'Cancelled' && status && status !== 'Cancelled') return errorResponse(res, 400, 'Cancelled orders cannot be reopened');
 
+    if (courier !== undefined || tracking_number !== undefined) {
+      db.prepare('UPDATE orders SET courier = ?, tracking_number = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+        .run(String(courier ?? order.courier ?? '').trim() || null, String(tracking_number ?? order.tracking_number ?? '').trim() || null, order.id);
+    }
+    const fresh = db.prepare('SELECT * FROM orders WHERE id = ?').get(order.id);
     if (status === 'Cancelled' && order.status !== 'Cancelled') {
-      cancelAndRestock(order);
-    } else if (status) {
+      cancelAndRestock(order, 'Cancelled by store');
+    } else if (status && status !== order.status) {
       db.prepare('UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(status, order.id);
+      const notes = { Confirmed: 'Order confirmed', Packed: 'Packed and ready to ship', Shipped: fresh.courier ? `Shipped via ${fresh.courier}${fresh.tracking_number ? ` (tracking no. ${fresh.tracking_number})` : ''}` : 'Shipped', Delivered: 'Delivered to customer', Pending: 'Moved back to pending' };
+      addHistory(order.id, status, notes[status]);
       // Cash is collected when a COD order is delivered
       if (status === 'Delivered' && order.payment_status === 'Pay on Delivery' && !payment_status) {
         db.prepare("UPDATE orders SET payment_status = 'Paid' WHERE id = ?").run(order.id);
       }
     }
-    if (payment_status) db.prepare('UPDATE orders SET payment_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(payment_status, order.id);
+    if (payment_status && payment_status !== order.payment_status) {
+      db.prepare('UPDATE orders SET payment_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(payment_status, order.id);
+      if (payment_status === 'Paid') addHistory(order.id, 'Payment received', order.payment_ref ? `Reference ${order.payment_ref}` : null);
+    }
     return successResponse(res, 200, db.prepare('SELECT * FROM orders WHERE id = ?').get(order.id), 'Order updated');
   } catch (error) {
     console.error(error);
@@ -313,7 +339,7 @@ exports.deleteOrder = (req, res) => {
     const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
     if (!order) return errorResponse(res, 404, 'Order not found');
     db.transaction(() => {
-      if (!['Cancelled', 'Delivered'].includes(order.status)) cancelAndRestock(order); // put stock back first
+      if (!['Cancelled', 'Delivered'].includes(order.status)) cancelAndRestock(order, 'Order deleted by store'); // put stock back first
       db.prepare('DELETE FROM order_items WHERE order_id = ?').run(order.id);
       db.prepare('DELETE FROM orders WHERE id = ?').run(order.id);
     })();
@@ -322,4 +348,43 @@ exports.deleteOrder = (req, res) => {
     console.error(error);
     return errorResponse(res, 500, 'Server error');
   }
+};
+
+// ---------- Inventory ----------
+exports.getInventorySummary = (req, res) => {
+  const one = (sql) => db.prepare(sql).get();
+  return successResponse(res, 200, {
+    units: one('SELECT COALESCE(SUM(stock), 0) AS n FROM products WHERE is_active = 1').n,
+    value: one('SELECT COALESCE(SUM(stock * price * (100 - discount_percent) / 100), 0) AS n FROM products WHERE is_active = 1').n,
+    lowStock: one('SELECT COUNT(*) AS n FROM products WHERE is_active = 1 AND stock BETWEEN 1 AND 5').n,
+    outOfStock: one('SELECT COUNT(*) AS n FROM products WHERE is_active = 1 AND stock = 0').n,
+    byCategory: db.prepare('SELECT category, SUM(stock) AS units, COUNT(*) AS products, SUM(stock = 0) AS out FROM products WHERE is_active = 1 GROUP BY category ORDER BY category').all(),
+  });
+};
+
+exports.adjustInventory = (req, res) => {
+  try {
+    const change = Math.round(Number(req.body.change));
+    const reason = String(req.body.reason || '').trim() || (change > 0 ? 'Restock' : 'Stock correction');
+    if (!Number.isInteger(change) || change === 0) return errorResponse(res, 400, 'Enter how many units to add (positive) or remove (negative)');
+    const product = db.prepare('SELECT id, stock FROM products WHERE id = ?').get(req.params.id);
+    if (!product) return errorResponse(res, 404, 'Product not found');
+    if (product.stock + change < 0) return errorResponse(res, 400, `Only ${product.stock} units in stock`);
+    const stock = db.transaction(() => adjustStock(product.id, change, reason, `By ${req.user.name}`))();
+    return successResponse(res, 200, { stock }, 'Stock updated');
+  } catch (error) {
+    console.error(error);
+    return errorResponse(res, 500, 'Server error');
+  }
+};
+
+exports.listMovements = (req, res) => {
+  const params = [];
+  let where = '1=1';
+  if (req.query.productId) { where = 'm.product_id = ?'; params.push(req.query.productId); }
+  const rows = db.prepare(`
+    SELECT m.*, p.name, p.images FROM inventory_movements m JOIN products p ON p.id = m.product_id
+    WHERE ${where} ORDER BY m.id DESC LIMIT 60
+  `).all(...params).map(r => ({ ...r, image: JSON.parse(r.images || '[]')[0] || null, images: undefined }));
+  return successResponse(res, 200, rows);
 };

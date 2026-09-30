@@ -21,7 +21,7 @@ const SORTS = [
 ];
 
 const FILTER_KEYS = ['search', 'subcategory', 'brand', 'color', 'size', 'minPrice', 'maxPrice', 'discount', 'minRating', 'sort', 'page', 'boostColor'];
-const EMPTY_FACETS = { subcategories: [], brands: [], colors: [], sizes: [], price: { min: 0, max: 0 } };
+const EMPTY_FACETS = { subcategories: [], brands: [], colors: [], sizes: [], specs: {}, price: { min: 0, max: 0 } };
 
 const pageList = (current, total) => {
   const pages = new Set([1, total, current, current - 1, current + 1]);
@@ -79,7 +79,8 @@ const ProductListing = () => {
   const [sortOpen, setSortOpen] = useState(false);
 
   const queryString = searchParams.toString();
-  const values = useMemo(() => Object.fromEntries(FILTER_KEYS.map(k => [k, searchParams.get(k) || ''])), [searchParams]);
+  // Known filters plus any specification filters (spec_RAM, spec_Storage, ...)
+  const values = useMemo(() => ({ ...Object.fromEntries(FILTER_KEYS.map(k => [k, ''])), ...Object.fromEntries(searchParams.entries()) }), [searchParams]);
 
   useEffect(() => {
     let cancelled = false;
@@ -128,7 +129,7 @@ const ProductListing = () => {
 
   // Chips for every active filter so each can be removed with one tap
   const activeChips = [
-    ...['subcategory', 'brand', 'color', 'size'].flatMap(key =>
+    ...['subcategory', 'brand', 'color', 'size', ...Object.keys(values).filter(k => k.startsWith('spec_'))].flatMap(key =>
       (values[key] ? values[key].split(',') : []).map(v => ({ key: `${key}:${v}`, label: v, remove: () => toggle(key, v) }))
     ),
     ...(values.minPrice || values.maxPrice ? [{
@@ -196,7 +197,7 @@ const ProductListing = () => {
 
       <div className="flex gap-10">
         <aside className="hidden w-72 shrink-0 lg:block" aria-label="Filters">
-          <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto pr-2">
+          <div className="sticky top-36 max-h-[calc(100vh-10rem)] overflow-y-auto pr-2">
             <div className="flex items-center justify-between pb-2">
               <h2 className="font-display text-xl font-semibold">Filters</h2>
               {activeChips.length > 0 && <button onClick={clearAll} className="link text-sm">Clear all</button>}

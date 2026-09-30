@@ -12,13 +12,13 @@ import { getRecentlyViewed } from '../utils/storage';
 const unsplash = (id, w = 1200) => `https://images.unsplash.com/photo-${id}?w=${w}&q=80&auto=format&fit=crop`;
 
 const HERO = [
-  { title: 'The New Season Edit', text: 'Fresh fits, festive colour and everyday essentials, all in one place.', cta: 'Shop Women', to: '/products/Women', img: unsplash('1483985988355-763728e1935b', 1400), className: 'md:col-span-2 md:row-span-2', big: true },
-  { title: 'Sneaker drop', text: 'Up to 50% off top brands', cta: 'Shop sneakers', to: categoryPath('Men', 'Sneakers'), img: unsplash('1542291026-7eec264c27ff', 900), className: 'md:col-span-2' },
-  { title: 'Sound on', text: 'Earbuds & headphones', cta: 'Explore', to: '/products/Electronics', img: unsplash('1505740420928-5e560c06d30e', 700), className: '' },
-  { title: 'Home refresh', text: 'Decor, candles & more', cta: 'Explore', to: '/products/Home%20%26%20Living', img: unsplash('1616486338812-3dadae4b4ace', 700), className: '' },
+  { title: 'Upgrade your tech', text: 'Laptops, phones and more from the brands you trust.', cta: 'Shop laptops', to: '/products/Laptops', img: unsplash('1496181133206-80ce9b88a853', 1400), className: 'md:col-span-2 md:row-span-2', big: true },
+  { title: 'Latest smartphones', text: 'iPhone, Galaxy, Pixel & more', cta: 'Shop mobiles', to: '/products/Mobiles', img: unsplash('1511707171634-5f897ff02aa9', 900), className: 'md:col-span-2' },
+  { title: '4K Smart TVs', text: 'Big screens, bigger savings', cta: 'Explore', to: '/products/TVs', img: unsplash('1593359677879-a4bb92f829d1', 700), className: '' },
+  { title: 'Cameras', text: 'DSLR, mirrorless & action', cta: 'Explore', to: '/products/Cameras', img: unsplash('1502982720700-bfff97f2ecac', 700), className: '' },
 ];
 
-const TRENDING_TABS = ['All', 'Men', 'Women', 'Electronics', 'Home & Living', 'Beauty'];
+const TRENDING_TABS = ['All', 'Mobiles', 'Tablets', 'Laptops', 'Accessories', 'TVs', 'Cameras', 'Home Appliances'];
 
 const Home = () => {
   const { categories } = useContext(CatalogContext);
@@ -72,7 +72,7 @@ const Home = () => {
     .sort((a, b) => b.maxDiscount - a.maxDiscount)
     .slice(0, 8);
 
-  const brands = ['Nike', 'Levis', 'Biba', 'Titan', 'boAt', 'Sony', 'Puma', 'Fabindia', 'Adidas', 'Fossil', 'Chumbak', 'Ray-Ban', 'JBL', 'Minimalist'];
+  const brands = ['Apple', 'Samsung', 'Sony', 'LG', 'Dell', 'HP', 'Lenovo', 'Canon', 'Nikon', 'OnePlus', 'Daikin', 'Whirlpool', 'Asus', 'Dyson'];
 
   return (
     <div className="space-y-16 pb-4 md:space-y-24">
@@ -108,11 +108,11 @@ const Home = () => {
             <h2 className="section-title">Shop by category</h2>
           </div>
         </div>
-        <div className="hide-scrollbar -mx-4 flex snap-x gap-4 overflow-x-auto px-4 sm:-mx-6 sm:px-6 lg:mx-0 lg:grid lg:grid-cols-7 lg:overflow-visible lg:px-0">
-          {(categories.length ? categories : Array.from({ length: 7 }, (_, i) => ({ name: '', i }))).map((cat, i) => {
+        <div className="hide-scrollbar -mx-4 flex snap-x gap-4 overflow-x-auto px-4 sm:-mx-6 sm:px-6 xl:mx-0 xl:grid xl:grid-cols-9 xl:overflow-visible xl:px-0">
+          {(categories.length ? categories : Array.from({ length: 9 }, (_, i) => ({ name: '', i }))).map((cat, i) => {
             const cover = cat.subcategories?.[0];
             return cat.name ? (
-              <Link key={cat.name} to={categoryPath(cat.name)} className="group w-32 shrink-0 snap-start text-center lg:w-auto">
+              <Link key={cat.name} to={categoryPath(cat.name)} className="group w-32 shrink-0 snap-start text-center xl:w-auto">
                 <div className="relative aspect-[3/4] overflow-hidden rounded-3xl bg-surface-2">
                   {cover?.image && <img src={cover.image.replace('w=800', 'w=400')} alt="" loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -123,7 +123,7 @@ const Home = () => {
                 <p className="mt-3 text-sm font-extrabold group-hover:text-accent-text">{cat.name}</p>
                 <p className="text-xs text-muted">{cat.count} products</p>
               </Link>
-            ) : <div key={i} className="skeleton aspect-[3/4] w-32 shrink-0 rounded-3xl lg:w-auto" />;
+            ) : <div key={i} className="skeleton aspect-[3/4] w-32 shrink-0 rounded-3xl xl:w-auto" />;
           })}
         </div>
       </section>
@@ -179,7 +179,7 @@ const Home = () => {
             <div>
               <p className="eyebrow mb-3">New · Snap to shop</p>
               <h2 className="section-title text-balance">Saw something you love? Just take a photo.</h2>
-              <p className="mt-4 max-w-lg text-muted">Point your camera at any outfit, gadget or home piece, or upload a picture from your gallery. StyleHub recognises the item and its colour and shows you similar products in seconds.</p>
+              <p className="mt-4 max-w-lg text-muted">Point your camera at any phone, laptop, TV or appliance, or upload a picture from your gallery. ElectroHub recognises the product type and shows you similar models in seconds.</p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <button onClick={openVisualSearch} className="btn-primary"><Camera size={18} /> Try visual search</button>
                 <button onClick={openSearch} className="btn-outline"><Mic size={18} /> Search by voice</button>
@@ -204,7 +204,7 @@ const Home = () => {
       {popularSubs.length > 0 && (
         <section className="container-x">
           <p className="eyebrow mb-2">Most loved</p>
-          <h2 className="section-title mb-6">Categories on sale</h2>
+          <h2 className="section-title mb-6">Shop by type</h2>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
             {popularSubs.map((s, i) => (
               <Link key={s.category + s.name} to={categoryPath(s.category, s.name)} className={`group relative overflow-hidden rounded-3xl bg-surface-2 ${i === 0 || i === 5 ? 'md:row-span-2' : ''}`}>

@@ -271,7 +271,7 @@ const Checkout = () => {
           )}
         </div>
 
-        <aside className="card h-fit p-5 lg:sticky lg:top-24">
+        <aside className="card h-fit p-5 lg:sticky lg:top-36">
           <h2 className="mb-4 text-sm font-extrabold uppercase tracking-wider">Order summary</h2>
           <ul className="mb-5 max-h-64 space-y-3 overflow-y-auto border-b border-line pb-5">
             {cart.map(item => (

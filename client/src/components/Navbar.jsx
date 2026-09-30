@@ -13,16 +13,16 @@ import Modal from './ui/Modal';
 const ANNOUNCEMENTS = [
   { icon: Truck, text: 'Free delivery on orders above ₹999' },
   { icon: Tag, text: 'Use code WELCOME10 for 10% off your first order' },
-  { icon: RotateCcw, text: 'Easy 14-day returns & exchanges' },
+  { icon: RotateCcw, text: 'Brand warranty on every product · 7-day replacement' },
   { icon: Camera, text: 'New: search with a photo from your camera or gallery' },
-  { icon: Sparkles, text: 'Flat ₹200 off above ₹1000 with FLAT200' },
+  { icon: Sparkles, text: 'Flat ₹1,000 off above ₹15,000 with FLAT1000' },
 ];
 
-const PLACEHOLDERS = ['sneakers', 'kurtis', 'wireless earbuds', 'scented candles', 'sunglasses', 'phone cases', 'smartwatches'];
+const PLACEHOLDERS = ['iPhone 15', 'iPad Air', 'gaming laptop', 'noise cancelling headphones', 'smartwatch', '20000 mAh power bank', '55 inch 4K TV', '1.5 ton AC'];
 
 const Logo = ({ className = '' }) => (
-  <Link to="/" className={`font-display text-2xl font-bold tracking-tight text-fg md:text-[28px] ${className}`} aria-label="StyleHub home">
-    Style<span className="text-accent-text">Hub</span><span className="text-accent-text">.</span>
+  <Link to="/" className={`font-display text-2xl font-bold tracking-tight text-fg md:text-[28px] ${className}`} aria-label="ElectroHub home">
+    Electro<span className="text-accent-text">Hub</span><span className="text-accent-text">.</span>
   </Link>
 );
 
@@ -138,25 +138,10 @@ const Navbar = () => {
           </button>
           <Logo />
 
-          <nav className="hidden h-full items-stretch lg:flex" aria-label="Categories">
-            {categories.map(cat => (
-              <div key={cat.name} className="flex items-stretch" onMouseEnter={() => hoverOpen(cat.name)}>
-                <NavLink
-                  to={categoryPath(cat.name)}
-                  onFocus={() => setOpenMenu(cat.name)}
-                  className={({ isActive }) => `relative flex items-center whitespace-nowrap px-2.5 text-[13px] font-extrabold uppercase tracking-wider transition xl:px-4 ${isActive || openMenu === cat.name ? 'text-accent-text' : 'text-fg hover:text-accent-text'}`}
-                  aria-expanded={openMenu === cat.name}
-                >
-                  {cat.name}
-                  <span className={`absolute inset-x-3 bottom-0 h-[3px] rounded-t-full bg-accent transition-transform duration-300 xl:inset-x-4 ${openMenu === cat.name ? 'scale-x-100' : 'scale-x-0'}`} />
-                </NavLink>
-              </div>
-            ))}
-          </nav>
 
           <div className="ml-auto flex flex-1 items-center justify-end gap-1 sm:gap-2">
             {/* Search trigger (looks like a field; opens the search palette) */}
-            <div className="relative hidden max-w-md flex-1 md:block" onMouseEnter={hoverClose}>
+            <div className="relative hidden max-w-xl flex-1 md:block" onMouseEnter={hoverClose}>
               <button onClick={openSearch} className="flex h-11 w-full items-center gap-3 rounded-full border border-line bg-surface-2 pl-4 pr-24 text-left text-sm text-muted transition hover:border-line-strong" aria-label="Search products">
                 <Search size={18} className="shrink-0" />
                 <span className="truncate">Search for <span key={placeholderIdx} className="animate-fade-in font-semibold text-fg">“{PLACEHOLDERS[placeholderIdx]}”</span></span>
@@ -216,6 +201,25 @@ const Navbar = () => {
             </Link>
           </div>
         </div>
+
+        {/* Category row (desktop) */}
+        <nav className="hidden border-t border-line lg:block" aria-label="Categories">
+          <div className="container-x hide-scrollbar flex h-11 items-stretch justify-center overflow-x-auto">
+            {categories.map(cat => (
+              <div key={cat.name} className="flex items-stretch" onMouseEnter={() => hoverOpen(cat.name)}>
+                <NavLink
+                  to={categoryPath(cat.name)}
+                  onFocus={() => setOpenMenu(cat.name)}
+                  className={({ isActive }) => `relative flex items-center whitespace-nowrap px-3 text-[13px] font-extrabold uppercase tracking-wider transition xl:px-4 ${isActive || openMenu === cat.name ? 'text-accent-text' : 'text-fg hover:text-accent-text'}`}
+                  aria-expanded={openMenu === cat.name}
+                >
+                  {cat.name}
+                  <span className={`absolute inset-x-3 bottom-0 h-[3px] rounded-t-full bg-accent transition-transform duration-300 xl:inset-x-4 ${openMenu === cat.name ? 'scale-x-100' : 'scale-x-0'}`} />
+                </NavLink>
+              </div>
+            ))}
+          </div>
+        </nav>
 
         {activeCategory && (
           <div className="hidden lg:block" onMouseEnter={() => clearTimeout(hoverTimer.current)}>

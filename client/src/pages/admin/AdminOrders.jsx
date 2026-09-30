@@ -113,6 +113,15 @@ const AdminOrders = () => {
                       </label>
                     </div>
 
+                    <form
+                      onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); save(o, { courier: f.get('courier'), tracking_number: f.get('tracking_number') }); }}
+                      className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+                    >
+                      <label className="block"><span className="label">Courier</span><input name="courier" defaultValue={o.courier || ''} placeholder="e.g. Blue Dart" className="input py-2.5" /></label>
+                      <label className="block"><span className="label">Tracking number</span><input name="tracking_number" defaultValue={o.tracking_number || ''} placeholder="AWB / tracking no." className="input py-2.5 font-mono" /></label>
+                      <button type="submit" className="btn-dark py-2.5">Save tracking</button>
+                    </form>
+
                     <div className="grid gap-4 text-sm sm:grid-cols-2">
                       <div>
                         <p className="label">Customer</p>

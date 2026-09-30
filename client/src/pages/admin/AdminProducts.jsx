@@ -8,7 +8,7 @@ import { Spinner } from '../../components/ui/Skeletons';
 import { formatPrice, sellingPrice } from '../../utils/format';
 import { Badge, Field, Pager, Toggle } from './adminUi';
 
-const EMPTY = { name: '', brand: '', category: '', subcategory: '', gender: 'Unisex', price: '', discount_percent: 0, stock: 10, colors: '', sizes: '', images: '', description: '', is_active: true };
+const EMPTY = { name: '', brand: '', category: '', subcategory: '', gender: 'Unisex', price: '', discount_percent: 0, stock: 10, colors: '', sizes: '', images: '', specs: '', description: '', is_active: true };
 
 const ProductForm = ({ product, initial, categories, onSaved, onClose }) => {
   const [form, setForm] = useState(() => product ? {
@@ -16,6 +16,7 @@ const ProductForm = ({ product, initial, categories, onSaved, onClose }) => {
     colors: product.colors.join(', '),
     sizes: product.sizes.join(', '),
     images: product.images.join('\n'),
+    specs: Object.entries(product.specs || {}).map(([k, v]) => `${k}: ${v}`).join('\n'),
     is_active: Boolean(product.is_active),
   } : { ...EMPTY, ...initial });
   const [saving, setSaving] = useState(false);
@@ -43,11 +44,7 @@ const ProductForm = ({ product, initial, categories, onSaved, onClose }) => {
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Product name" className="sm:col-span-2"><input required value={form.name} onChange={set('name')} className="input" /></Field>
         <Field label="Brand"><input required value={form.brand} onChange={set('brand')} className="input" /></Field>
-        <Field label="Ideal for">
-          <select value={form.gender} onChange={set('gender')} className="input">
-            {['Men', 'Women', 'Kids', 'Unisex'].map(g => <option key={g}>{g}</option>)}
-          </select>
-        </Field>
+        <Field label="Colour" hint="e.g. Black"><input value={form.colors} onChange={set('colors')} className="input" /></Field>
         <Field label="Category" hint="Pick one or type a new category">
           <input required list="admin-categories" value={form.category} onChange={set('category')} className="input" />
           <datalist id="admin-categories">{categories.map(c => <option key={c.name} value={c.name} />)}</datalist>
@@ -60,9 +57,10 @@ const ProductForm = ({ product, initial, categories, onSaved, onClose }) => {
         <Field label="Discount (%)" hint={form.price ? `Selling price: ${formatPrice(sellingPrice({ price: Number(form.price), discount_percent: Number(form.discount_percent) || 0 }))}` : ''}>
           <input type="number" min="0" max="95" value={form.discount_percent} onChange={set('discount_percent')} className="input" />
         </Field>
-        <Field label="Stock"><input required type="number" min="0" value={form.stock} onChange={set('stock')} className="input" /></Field>
-        <Field label="Colours" hint="Comma separated, e.g. Black, White"><input value={form.colors} onChange={set('colors')} className="input" /></Field>
-        <Field label="Sizes" hint="Comma separated, e.g. S, M, L (leave empty for one size)" className="sm:col-span-2"><input value={form.sizes} onChange={set('sizes')} className="input" /></Field>
+        <Field label="Stock" hint="Changes are logged in Inventory"><input required type="number" min="0" value={form.stock} onChange={set('stock')} className="input" /></Field>
+        <Field label="Specifications" hint="One per line as Name: Value, e.g. RAM: 8 GB. These power the specification filters." className="sm:col-span-2">
+          <textarea rows={6} value={form.specs} onChange={set('specs')} placeholder={'RAM: 8 GB\nStorage: 256 GB\nDisplay: 6.7 inch AMOLED\nWarranty: 1 Year Manufacturer Warranty'} className="input font-mono text-xs" />
+        </Field>
         <Field label="Image URLs" hint="One per line. The first image is the main photo." className="sm:col-span-2">
           <textarea required rows={3} value={form.images} onChange={set('images')} className="input font-mono text-xs" />
         </Field>

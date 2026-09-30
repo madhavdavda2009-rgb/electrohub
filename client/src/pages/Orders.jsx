@@ -138,8 +138,25 @@ const Orders = () => {
                         </li>
                       ))}
                     </ol>
-                    <p className="mt-4 text-sm"><span className="text-muted">Expected by</span> <strong>{eta.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</strong></p>
+                    <p className="mt-4 text-sm"><span className="text-muted">{order.status === 'Delivered' ? 'Delivered' : 'Expected by'}</span> <strong>{eta.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</strong>
+                      {order.tracking_number && <> · <span className="text-muted">{order.courier || 'Courier'}</span> <strong className="font-mono">{order.tracking_number}</strong></>}</p>
                   </div>
+                )}
+
+                {order.history?.length > 0 && (
+                  <details className="mb-4 rounded-2xl bg-surface-2 p-4">
+                    <summary className="cursor-pointer text-sm font-extrabold">Tracking history ({order.history.length} updates)</summary>
+                    <ol className="mt-3 space-y-3 border-l-2 border-line-strong pl-4">
+                      {[...order.history].reverse().map((h, i) => (
+                        <li key={i} className="relative text-sm">
+                          <span className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full bg-accent" aria-hidden="true" />
+                          <p className="font-bold">{h.status}</p>
+                          {h.note && <p className="text-muted">{h.note}</p>}
+                          <p className="text-xs text-muted">{parseDbDate(h.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
+                        </li>
+                      ))}
+                    </ol>
+                  </details>
                 )}
 
                 <ul className="divide-y divide-line">

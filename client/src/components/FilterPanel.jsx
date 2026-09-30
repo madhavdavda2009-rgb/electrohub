@@ -5,11 +5,11 @@ import { COLOR_SWATCHES } from '../utils/format';
 import { categoryPath } from '../context/CatalogContext';
 
 export const PRICE_PRESETS = [
-  { label: 'Under ₹499', min: '', max: '499' },
-  { label: '₹500 – ₹999', min: '500', max: '999' },
-  { label: '₹1,000 – ₹2,499', min: '1000', max: '2499' },
-  { label: '₹2,500 – ₹4,999', min: '2500', max: '4999' },
-  { label: '₹5,000 & above', min: '5000', max: '' },
+  { label: 'Under ₹15,000', min: '', max: '14999' },
+  { label: '₹15,000 – ₹30,000', min: '15000', max: '30000' },
+  { label: '₹30,000 – ₹60,000', min: '30000', max: '60000' },
+  { label: '₹60,000 – ₹1,00,000', min: '60000', max: '100000' },
+  { label: '₹1,00,000 & above', min: '100000', max: '' },
 ];
 
 const Section = ({ title, children, defaultOpen = true, count }) => {
@@ -146,6 +146,14 @@ const FilterPanel = ({ facets, values, toggle, set, category, categories }) => {
           </div>
         </Section>
       )}
+
+      {Object.entries(facets.specs || {}).map(([key, options], i) => (
+        <Section key={key} title={key} count={selected(`spec_${key}`).length} defaultOpen={i < 4}>
+          {options.map(o => (
+            <CheckRow key={o.value} label={o.value} count={o.count} checked={selected(`spec_${key}`).includes(o.value)} onChange={() => toggle(`spec_${key}`, o.value)} />
+          ))}
+        </Section>
+      ))}
 
       <Section title="Discount" count={values.discount ? 1 : 0} defaultOpen={false}>
         {[10, 20, 30, 40, 50, 60].map(d => (

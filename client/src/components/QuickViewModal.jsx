@@ -73,7 +73,7 @@ const QuickViewBody = ({ product, onClose }) => {
 
         <ul className="mt-6 space-y-2 text-sm text-muted">
           <li className="flex items-center gap-2"><Truck size={16} /> Free delivery on orders above ₹999</li>
-          <li className="flex items-center gap-2"><RotateCcw size={16} /> Easy 14-day returns & exchanges</li>
+          <li className="flex items-center gap-2"><RotateCcw size={16} /> {product.specs?.Warranty || 'Brand warranty'} · 7-day replacement</li>
         </ul>
 
         <Link to={`/product/${product.id}`} onClick={onClose} className="link mt-auto inline-flex items-center gap-1 pt-6 text-sm">

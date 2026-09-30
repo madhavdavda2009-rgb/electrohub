@@ -6,8 +6,8 @@ import { CatalogContext, categoryPath } from '../context/CatalogContext';
 
 const PERKS = [
   { icon: Truck, title: 'Free delivery', text: 'On all orders above ₹999' },
-  { icon: RotateCcw, title: '14-day returns', text: 'Easy, no-questions-asked' },
-  { icon: ShieldCheck, title: '100% original', text: 'Sourced directly from brands' },
+  { icon: RotateCcw, title: '7-day replacement', text: 'For damaged or defective items' },
+  { icon: ShieldCheck, title: 'Brand warranty', text: 'Genuine products, GST invoice' },
   { icon: Headset, title: '24x7 support', text: 'We are here to help' },
 ];
 
@@ -16,7 +16,7 @@ const HELP_LINKS = [
   ['FAQs', '/help/faq'],
   ['Shipping', '/help/shipping'],
   ['Returns & exchanges', '/help/returns'],
-  ['Track your order', '/orders'],
+  ['Track your order', '/track'],
   ['Terms of use', '/help/terms'],
   ['Privacy policy', '/help/privacy'],
 ];
@@ -48,8 +48,8 @@ const Footer = () => {
 
       <div className="container-x grid gap-10 py-14 md:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.4fr]">
         <div>
-          <Link to="/" className="font-display text-3xl font-bold">Style<span className="text-accent-text">Hub.</span></Link>
-          <p className="mt-4 max-w-xs text-sm text-muted">Fashion, home, beauty and gadgets from the brands you love, delivered fast with easy returns.</p>
+          <Link to="/" className="font-display text-3xl font-bold">Electro<span className="text-accent-text">Hub.</span></Link>
+          <p className="mt-4 max-w-xs text-sm text-muted">Phones, laptops, TVs, cameras and home appliances with full specifications, brand warranty and fast delivery.</p>
         </div>
 
         <div>
@@ -86,7 +86,7 @@ const Footer = () => {
 
       <div className="border-t border-line">
         <div className="container-x flex flex-col items-center justify-between gap-2 py-6 text-xs text-muted sm:flex-row">
-          <p>© {new Date().getFullYear()} StyleHub. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} ElectroHub. All rights reserved.</p>
           <p>Product photos from Unsplash. Payments are simulated in this demo store.</p>
         </div>
       </div>

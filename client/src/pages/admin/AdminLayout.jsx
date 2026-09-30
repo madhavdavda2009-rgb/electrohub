@@ -1,12 +1,13 @@
 import React, { useContext } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
-import { LayoutGrid, Package, ShoppingBag, Tag, Megaphone, ArrowLeft } from 'lucide-react';
+import { LayoutGrid, Package, ShoppingBag, Tag, Megaphone, ArrowLeft, Boxes } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 import { Spinner } from '../../components/ui/Skeletons';
 
 const LINKS = [
   { to: '/admin', label: 'Dashboard', icon: LayoutGrid, end: true },
   { to: '/admin/products', label: 'Products', icon: Package },
+  { to: '/admin/inventory', label: 'Inventory', icon: Boxes },
   { to: '/admin/orders', label: 'Orders', icon: ShoppingBag },
   { to: '/admin/coupons', label: 'Coupons', icon: Tag },
   { to: '/admin/offers', label: 'Offers', icon: Megaphone },
@@ -32,7 +33,7 @@ const AdminLayout = () => {
     <div className="container-x py-6 md:py-10">
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
-          <p className="eyebrow">StyleHub admin</p>
+          <p className="eyebrow">ElectroHub admin</p>
           <h1 className="font-display text-3xl font-semibold">Control panel</h1>
         </div>
         <Link to="/" className="btn-outline py-2.5"><ArrowLeft size={16} /> <span className="hidden sm:inline">Back to shop</span></Link>

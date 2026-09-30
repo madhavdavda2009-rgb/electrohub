@@ -215,12 +215,12 @@ const Profile = () => {
                 <input id="p-phone" inputMode="tel" value={profileData.phone} onChange={e => setProfileData({ ...profileData, phone: e.target.value })} className="input" />
               </div>
               <div>
-                <label htmlFor="p-gender" className="label">Shop for</label>
+                <label htmlFor="p-gender" className="label">Gender</label>
                 <select id="p-gender" value={profileData.gender} onChange={e => setProfileData({ ...profileData, gender: e.target.value })} className="input">
                   <option value="">Select</option>
-                  <option value="Men">Men</option>
-                  <option value="Women">Women</option>
-                  <option value="Unisex">Everyone</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
                 </select>
               </div>
               <button type="submit" className="btn-primary">Save changes</button>
@@ -232,7 +232,7 @@ const Profile = () => {
 
           {activeTab === 'appearance' && (
             <div className="max-w-md">
-              <p className="mb-4 text-sm text-muted">Choose how StyleHub looks. “System” follows your device setting automatically.</p>
+              <p className="mb-4 text-sm text-muted">Choose how ElectroHub looks. “System” follows your device setting automatically.</p>
               <ThemeSelector />
             </div>
           )}

@@ -3,6 +3,7 @@ const { successResponse, errorResponse } = require('../utils/response');
 const { evaluateCoupon, getDeliveryFee } = require('../utils/pricing');
 const { buildUpiPayment } = require('../utils/upi');
 const { RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET } = require('../config/payment');
+const { adjustStock, addHistory, getHistory } = require('../utils/inventory');
 
 const PAYMENT_METHODS = ['UPI', 'Card', 'COD'];
 // Orders the customer may still cancel
@@ -11,6 +12,7 @@ const CANCELLABLE = ['Pending', 'Confirmed'];
 const withDetails = (order) => {
   order.address_snapshot = JSON.parse(order.address_snapshot || '{}');
   order.items = db.prepare('SELECT * FROM order_items WHERE order_id = ?').all(order.id);
+  order.history = getHistory(order.id);
   return order;
 };
 
@@ -75,15 +77,14 @@ exports.createOrder = async (req, res) => {
         INSERT INTO order_items (order_id, product_id, name, price, size, quantity, image)
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `);
-      const updateStock = db.prepare('UPDATE products SET stock = stock - ? WHERE id = ?');
-
       for (const item of cartItems) {
         const itemPrice = item.price - (item.price * item.discount_percent / 100);
         const images = JSON.parse(item.images || '[]');
         insertOrderItem.run(id, item.product_id, item.name, itemPrice, item.size, item.quantity, images[0] || null);
-        updateStock.run(item.quantity, item.product_id);
+        adjustStock(item.product_id, -item.quantity, 'Sold', `Order #${id}`);
       }
 
+      addHistory(id, 'Placed', payment_method === 'COD' ? 'Order placed (cash on delivery)' : 'Order placed, waiting for payment');
       db.prepare('DELETE FROM cart_items WHERE user_id = ?').run(user_id);
       return id;
     })();
@@ -119,14 +120,14 @@ exports.getOrderById = (req, res) => {
 };
 
 // Shared with the admin panel: cancels an order and puts its items back in stock
-const cancelAndRestock = (order) => {
+const cancelAndRestock = (order, note = 'Order cancelled') => {
   db.transaction(() => {
     const refund = order.payment_status === 'Paid' ? 'Refund Initiated' : order.payment_status === 'Pay on Delivery' ? 'Not Required' : 'Cancelled';
     db.prepare("UPDATE orders SET status = 'Cancelled', payment_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(refund, order.id);
-    const updateStock = db.prepare('UPDATE products SET stock = stock + ? WHERE id = ?');
     for (const item of db.prepare('SELECT * FROM order_items WHERE order_id = ?').all(order.id)) {
-      updateStock.run(item.quantity, item.product_id);
+      if (db.prepare('SELECT 1 FROM products WHERE id = ?').get(item.product_id)) adjustStock(item.product_id, item.quantity, 'Returned to stock', `Order #${order.id} cancelled`);
     }
+    addHistory(order.id, 'Cancelled', note);
   })();
 };
 exports.cancelAndRestock = cancelAndRestock;
@@ -137,8 +138,31 @@ exports.cancelOrder = (req, res) => {
     if (!order) return errorResponse(res, 404, 'Order not found');
     if (!CANCELLABLE.includes(order.status)) return errorResponse(res, 400, 'This order can no longer be cancelled');
 
-    cancelAndRestock(order);
+    cancelAndRestock(order, 'Cancelled by customer');
     return successResponse(res, 200, null, 'Order cancelled');
+  } catch (error) {
+    return errorResponse(res, 500, 'Server error');
+  }
+};
+
+// Public order tracking: order number + the email used to place it (no login needed)
+exports.trackOrder = (req, res) => {
+  try {
+    const id = String(req.query.orderId || '').replace(/\D/g, '');
+    const email = String(req.query.email || '').trim().toLowerCase();
+    if (!id || !email) return errorResponse(res, 400, 'Enter your order number and email address');
+    const order = db.prepare(`
+      SELECT o.* FROM orders o JOIN users u ON u.id = o.user_id WHERE o.id = ? AND LOWER(u.email) = ?
+    `).get(id, email);
+    if (!order) return errorResponse(res, 404, "We couldn't find an order with those details");
+    const full = withDetails(order);
+    return successResponse(res, 200, {
+      id: full.id, status: full.status, payment_status: full.payment_status, payment_method: full.payment_method,
+      total_amount: full.total_amount, created_at: full.created_at, courier: full.courier, tracking_number: full.tracking_number,
+      city: full.address_snapshot.city, pincode: full.address_snapshot.pincode,
+      items: full.items.map(i => ({ name: i.name, quantity: i.quantity, image: i.image })),
+      history: full.history,
+    });
   } catch (error) {
     return errorResponse(res, 500, 'Server error');
   }

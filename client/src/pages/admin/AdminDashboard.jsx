@@ -7,7 +7,7 @@ import { formatDate, formatPrice } from '../../utils/format';
 import { Badge, ORDER_STATUS_STYLES, PAYMENT_STATUS_STYLES } from './adminUi';
 
 const Stat = ({ icon: Icon, label, value, to, tone }) => (
-  <Link to={to} className="card flex items-center gap-4 p-5 transition hover:border-fg">
+  <Link to={to} className="card flex min-w-0 items-center gap-4 p-5 transition hover:border-fg">
     <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl ${tone || 'bg-surface-2'}`}><Icon size={22} /></span>
     <div className="min-w-0">
       <p className="text-xs font-bold uppercase tracking-wider text-muted">{label}</p>
@@ -37,12 +37,12 @@ const AdminDashboard = () => {
       {(stats.paymentsToVerify > 0 || stats.lowStock > 0) && (
         <div className="grid gap-4 sm:grid-cols-2">
           {stats.paymentsToVerify > 0 && (
-            <Link to="/admin/orders?payment=Verifying" className="card flex items-center gap-3 border-accent p-4 font-bold">
+            <Link to="/admin/orders?payment=Verifying" className="card flex min-w-0 items-center gap-3 border-accent p-4 font-bold">
               <BadgeCheck size={20} className="text-accent-text" /> {stats.paymentsToVerify} UPI payment{stats.paymentsToVerify > 1 ? 's' : ''} waiting for verification <ArrowRight size={16} className="ml-auto" />
             </Link>
           )}
           {stats.lowStock > 0 && (
-            <Link to="/admin/products?status=low" className="card flex items-center gap-3 p-4 font-bold">
+            <Link to="/admin/products?status=low" className="card flex min-w-0 items-center gap-3 p-4 font-bold">
               <AlertTriangle size={20} className="text-warning" /> {stats.lowStock} products are low on stock <ArrowRight size={16} className="ml-auto" />
             </Link>
           )}
@@ -50,7 +50,7 @@ const AdminDashboard = () => {
       )}
 
       <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
-        <section className="card p-5">
+        <section className="card min-w-0 p-5">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-extrabold">Recent orders</h2>
             <Link to="/admin/orders" className="link text-sm">View all</Link>
@@ -70,7 +70,7 @@ const AdminDashboard = () => {
           )}
         </section>
 
-        <section className="card p-5">
+        <section className="card min-w-0 p-5">
           <h2 className="mb-4 font-extrabold">Products by category</h2>
           <ul className="space-y-3">
             {stats.byCategory.map(c => (
@@ -93,7 +93,7 @@ const AdminDashboard = () => {
           <h2 className="mb-4 font-extrabold">Low stock</h2>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {stats.lowStockProducts.map(p => (
-              <Link key={p.id} to={`/admin/products?search=${p.id}`} className="flex items-center gap-3 rounded-xl border border-line p-2.5 hover:border-fg">
+              <Link key={p.id} to={`/admin/products?search=${p.id}`} className="flex min-w-0 items-center gap-3 rounded-xl border border-line p-2.5 hover:border-fg">
                 <img src={p.images[0]?.replace('w=800', 'w=120')} alt="" className="h-12 w-10 rounded-lg object-cover" />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold">{p.name}</p>

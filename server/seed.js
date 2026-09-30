@@ -2,314 +2,427 @@ const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const db = require('./db');
-const { TYPE_RULES, COLOR_CODES } = require('./data/typeRules');
 
 // ---------------------------------------------------------------------------
-// Catalog definition. Photos (and each photo's main colour) come from
-// data/catalog-images.txt: one line per "Category/Subcategory", 24 Unsplash photos each.
+// ElectroHub catalog: electronics only. Photos come from data/electronics-images.txt
+// ("Category/Subcategory=photoId:Colour:BrandSeenInPhoto,..."). Every product uses only
+// its own photo, and a brand recognised in the photo is used for its name.
 // ---------------------------------------------------------------------------
 
-const APPAREL = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
-const WAIST = ['28', '30', '32', '34', '36', '38'];
-const MEN_SHOES = ['UK 6', 'UK 7', 'UK 8', 'UK 9', 'UK 10', 'UK 11'];
-const WOMEN_SHOES = ['UK 3', 'UK 4', 'UK 5', 'UK 6', 'UK 7', 'UK 8'];
-const KIDS_WEAR = ['2-3Y', '4-5Y', '6-7Y', '8-9Y', '10-11Y', '12-13Y'];
-const KIDS_SHOES = ['UK 10C', 'UK 11C', 'UK 12C', 'UK 13C', 'UK 1', 'UK 2'];
-const PHONES = ['iPhone 15', 'iPhone 15 Pro', 'iPhone 14', 'Galaxy S24', 'OnePlus 12', 'Pixel 8'];
-const FREE = [];
-
-const CATALOG = {
-  Men: {
-    gender: 'Men',
-    subs: {
-      'T-Shirts': { brands: ['Roadster', 'H&M', 'Puma', 'Nike', 'HRX', 'Bewakoof', 'U.S. Polo Assn.', 'Levis'], styles: ['Oversized', 'Slim Fit', 'Regular Fit', 'Relaxed Fit', 'Muscle Fit'], types: ['Crew Neck T-Shirt', 'Polo T-Shirt', 'Graphic Print T-Shirt', 'Henley T-Shirt', 'V-Neck T-Shirt', 'Striped T-Shirt'], materials: ['Pure Cotton', 'Cotton Blend', 'Organic Cotton', 'Dri-FIT'], price: [399, 1999], sizes: APPAREL, about: 'Soft, breathable and easy to style with jeans, chinos or joggers.' },
-      Shirts: { brands: ['Allen Solly', 'Louis Philippe', 'Van Heusen', 'Peter England', 'H&M', 'Roadster', 'Levis', 'Arrow'], styles: ['Slim Fit', 'Regular Fit', 'Tailored Fit', 'Relaxed Fit'], types: ['Casual Shirt', 'Formal Shirt', 'Checked Shirt', 'Oxford Shirt', 'Linen Shirt', 'Denim Shirt', 'Printed Shirt'], materials: ['Pure Cotton', 'Linen Blend', 'Cotton Twill', 'Poplin'], price: [699, 2999], sizes: APPAREL, about: 'A smart button-down that moves from office hours to weekend plans.' },
-      Jeans: { brands: ['Levis', 'Wrangler', 'Lee', 'Pepe Jeans', 'Roadster', 'Jack & Jones', 'Spykar', 'H&M'], styles: ['Slim Fit', 'Skinny Fit', 'Straight Fit', 'Tapered Fit', 'Relaxed Fit', 'Bootcut'], types: ['Stretchable Jeans', 'Mid-Rise Jeans', 'Distressed Jeans', 'Clean Look Jeans', 'Light Fade Jeans'], materials: ['Stretch Denim', 'Rigid Denim', 'Cotton Denim'], price: [999, 3999], sizes: WAIST, about: 'Everyday denim with a comfortable stretch and a fit that holds its shape.' },
-      'Formal Wear': { brands: ['Raymond', 'Louis Philippe', 'Van Heusen', 'Blackberrys', 'Arrow', 'Park Avenue', 'Allen Solly'], styles: ['Slim Fit', 'Regular Fit', 'Tailored Fit'], types: ['Two-Piece Suit', 'Three-Piece Suit', 'Single-Breasted Blazer', 'Double-Breasted Blazer', 'Formal Trousers', 'Tuxedo'], materials: ['Wool Blend', 'Poly Viscose', 'Linen Blend', 'Terry Rayon'], price: [1999, 14999], sizes: APPAREL, about: 'Sharp tailoring for weddings, interviews and big meetings.' },
-      Kurtas: { brands: ['Manyavar', 'Fabindia', 'Sojanya', 'Jompers', 'House of Pataudi', 'Anouk', 'Vastramay'], styles: ['Straight', 'A-Line', 'Short', 'Pathani', 'Mandarin Collar'], types: ['Kurta', 'Kurta Pyjama Set', 'Nehru Jacket Set', 'Sherwani', 'Embroidered Kurta'], materials: ['Pure Cotton', 'Silk Blend', 'Linen', 'Chanderi', 'Jacquard'], price: [799, 7999], sizes: APPAREL, about: 'Festive-ready ethnic wear with fine detailing and a comfortable fit.' },
-      Jackets: { brands: ['Roadster', 'Puma', 'Nike', 'Adidas', 'Levis', 'Wildcraft', 'The North Face', 'H&M'], styles: ['Slim Fit', 'Regular Fit', 'Oversized', 'Cropped'], types: ['Bomber Jacket', 'Denim Jacket', 'Biker Jacket', 'Puffer Jacket', 'Windcheater', 'Hooded Jacket'], materials: ['Faux Leather', 'Denim', 'Nylon', 'Polyester', 'Suede'], price: [1499, 7999], sizes: APPAREL, about: 'A layer-up essential with a wind-resistant shell and roomy pockets.' },
-      Sneakers: { brands: ['Nike', 'Adidas', 'Puma', 'Reebok', 'New Balance', 'Skechers', 'ASICS', 'Red Tape'], styles: ['Low-Top', 'Mid-Top', 'Chunky', 'Minimal', 'Retro'], types: ['Sneakers', 'Running Shoes', 'Court Sneakers', 'Training Shoes', 'Slip-On Sneakers'], materials: ['Leather', 'Mesh', 'Knit', 'Suede', 'Canvas'], price: [1499, 9999], sizes: MEN_SHOES, about: 'Cushioned midsole and grippy outsole for all-day comfort.' },
-      'Formal Shoes': { brands: ['Clarks', 'Bata', 'Red Tape', 'Hush Puppies', 'Louis Philippe', 'Woodland', 'Allen Solly'], styles: ['Classic', 'Handcrafted', 'Polished', 'Lace-Up', 'Slip-On'], types: ['Oxford Shoes', 'Derby Shoes', 'Brogues', 'Loafers', 'Monk Straps', 'Chelsea Boots'], materials: ['Genuine Leather', 'Patent Leather', 'Suede', 'Nubuck'], price: [1999, 7999], sizes: MEN_SHOES, about: 'Refined leather shoes with a cushioned footbed for long days.' },
-      Watches: { brands: ['Titan', 'Fossil', 'Casio', 'Timex', 'Tommy Hilfiger', 'Seiko', 'Daniel Wellington', 'Fastrack'], styles: ['Analogue', 'Chronograph', 'Automatic', 'Minimalist', 'Dive-Style'], types: ['Watch', 'Chronograph Watch', 'Dress Watch', 'Field Watch', 'Multifunction Watch'], materials: ['Stainless Steel', 'Leather Strap', 'Mesh Strap', 'Silicone Strap'], price: [1499, 24999], sizes: FREE, about: 'Precise quartz movement, scratch-resistant glass and 50m water resistance.' },
-      Sunglasses: { brands: ['Ray-Ban', 'Oakley', 'Fastrack', 'Vincent Chase', 'Carrera', 'IDEE', 'Polaroid'], styles: ['Aviator', 'Wayfarer', 'Round', 'Square', 'Sports', 'Clubmaster'], types: ['Sunglasses', 'Polarised Sunglasses', 'UV-Protected Sunglasses'], materials: ['Metal Frame', 'Acetate Frame', 'TR90 Frame'], price: [699, 8999], sizes: FREE, about: '100% UV400 protection with lightweight, durable frames.' },
-      'Belts & Wallets': { brands: ['Tommy Hilfiger', 'WildHorn', 'Woodland', 'Allen Solly', 'Hidesign', 'Levis', 'Fossil'], styles: ['Classic', 'Slim', 'Textured', 'Reversible', 'RFID-Protected'], types: ['Bi-Fold Wallet', 'Card Holder', 'Leather Belt', 'Formal Belt', 'Casual Belt', 'Tri-Fold Wallet'], materials: ['Genuine Leather', 'Vegan Leather', 'Crocodile-Texture Leather'], price: [399, 2999], sizes: FREE, about: 'Hand-finished leather accessories that age beautifully.' },
-    },
-  },
-  Women: {
-    gender: 'Women',
-    subs: {
-      Kurtis: { brands: ['Biba', 'W', 'Aurelia', 'Libas', 'Anouk', 'Global Desi', 'Sangria', 'Fabindia'], styles: ['Straight', 'A-Line', 'Anarkali', 'Flared', 'Angrakha', 'Kaftan'], types: ['Kurti', 'Kurta with Palazzos', 'Kurta Set with Dupatta', 'Printed Kurti', 'Embroidered Kurti', 'Tunic'], materials: ['Pure Cotton', 'Rayon', 'Chanderi Silk', 'Georgette', 'Viscose'], price: [499, 4499], sizes: APPAREL, about: 'Graceful everyday ethnic wear with thoughtful prints and a flattering fall.' },
-      Jeans: { brands: ['Levis', 'Only', 'Vero Moda', 'Roadster', 'H&M', 'Pepe Jeans', 'Lee', 'Mango'], styles: ['Skinny Fit', 'Mom Fit', 'Wide Leg', 'Bootcut', 'Straight Fit', 'Flared', 'Boyfriend Fit', 'Barrel Leg'], types: ['High-Rise Jeans', 'Mid-Rise Jeans', 'Stretchable Jeans', 'Distressed Jeans', 'Cropped Jeans'], materials: ['Stretch Denim', 'Rigid Denim', 'Cotton Denim'], price: [899, 3499], sizes: WAIST, about: 'Figure-flattering denim in the season’s most-wanted fits.' },
-      Tops: { brands: ['H&M', 'Zara', 'Only', 'Vero Moda', 'Mango', 'Forever 21', 'SASSAFRAS', 'Tokyo Talkies'], styles: ['Fitted', 'Oversized', 'Cropped', 'Peplum', 'Wrap', 'Puff Sleeve'], types: ['Top', 'Blouse', 'Crop Top', 'Shirt', 'Tank Top', 'Bodysuit', 'Knit Top'], materials: ['Cotton', 'Satin', 'Georgette', 'Crepe', 'Ribbed Knit'], price: [349, 1999], sizes: APPAREL, about: 'An easy-to-style top that pairs with jeans, skirts and trousers.' },
-      Dresses: { brands: ['Zara', 'H&M', 'Mango', 'Berrylush', 'SASSAFRAS', 'Label Ritu Kumar', 'Only', 'AND'], styles: ['A-Line', 'Bodycon', 'Maxi', 'Midi', 'Wrap', 'Fit & Flare', 'Slip'], types: ['Dress', 'Floral Dress', 'Party Dress', 'Shirt Dress', 'Evening Gown', 'Sundress'], materials: ['Georgette', 'Satin', 'Crepe', 'Cotton', 'Chiffon', 'Linen'], price: [799, 5999], sizes: APPAREL, about: 'Effortless silhouettes for brunches, date nights and everything between.' },
-      Sarees: { brands: ['Sabyasachi Edit', 'Kalini', 'Mitera', 'Saree Mall', 'Kanjivaram House', 'Banarasi Weaves', 'Ishin'], styles: ['Banarasi', 'Kanjivaram', 'Chiffon', 'Organza', 'Bandhani', 'Chanderi', 'Paithani'], types: ['Saree', 'Silk Saree', 'Woven Saree', 'Zari Saree', 'Embellished Saree'], materials: ['Pure Silk', 'Art Silk', 'Georgette', 'Cotton Silk', 'Organza'], price: [999, 14999], sizes: FREE, about: 'Comes with an unstitched blouse piece; handcrafted by artisan weavers.' },
-      Handbags: { brands: ['Caprese', 'Lavie', 'Hidesign', 'Baggit', 'Accessorize', 'Guess', 'Michael Kors', 'Charles & Keith'], styles: ['Structured', 'Quilted', 'Mini', 'Oversized', 'Textured', 'Chain-Strap'], types: ['Tote Bag', 'Sling Bag', 'Shoulder Bag', 'Satchel', 'Clutch', 'Hobo Bag'], materials: ['Vegan Leather', 'Genuine Leather', 'Canvas', 'Suede'], price: [999, 12999], sizes: FREE, about: 'Roomy compartments, a secure zip and hardware that won’t tarnish.' },
-      'Heels & Flats': { brands: ['Metro', 'Mochi', 'Catwalk', 'Inc.5', 'Bata', 'Steve Madden', 'Aldo', 'Charles & Keith'], styles: ['Block Heel', 'Stiletto', 'Kitten Heel', 'Wedge', 'Platform', 'Flat'], types: ['Sandals', 'Pumps', 'Mules', 'Ballerinas', 'Slingbacks', 'Kolhapuris'], materials: ['Vegan Leather', 'Satin', 'Suede', 'Patent'], price: [799, 5999], sizes: WOMEN_SHOES, about: 'Padded insoles and a secure fit so you can dance all night.' },
-      Jewellery: { brands: ['Tanishq Mia', 'Zaveri Pearls', 'Giva', 'Accessorize', 'Voylla', 'Pipa Bella', 'Swarovski', 'Caratlane'], styles: ['Gold-Plated', 'Silver', 'Kundan', 'Pearl', 'Oxidised', 'Rose Gold', 'Diamond-Look'], types: ['Necklace Set', 'Jhumkas', 'Stud Earrings', 'Hoop Earrings', 'Bracelet', 'Ring', 'Pendant Necklace', 'Anklet'], materials: ['925 Sterling Silver', 'Brass', 'Alloy', '18K Gold Plating'], price: [299, 9999], sizes: FREE, about: 'Skin-friendly, nickel-free and gift-ready in a signature box.' },
-      Watches: { brands: ['Titan Raga', 'Fossil', 'Daniel Wellington', 'Michael Kors', 'Casio', 'Anne Klein', 'Guess', 'Fastrack'], styles: ['Analogue', 'Minimalist', 'Bracelet', 'Crystal-Studded', 'Mesh'], types: ['Watch', 'Dress Watch', 'Bracelet Watch', 'Chronograph Watch'], materials: ['Rose Gold-Tone', 'Stainless Steel', 'Leather Strap', 'Ceramic'], price: [1499, 19999], sizes: FREE, about: 'Elegant dial, precise quartz movement and a strap made to last.' },
-      Sunglasses: { brands: ['Ray-Ban', 'Vincent Chase', 'Fastrack', 'Carrera', 'Gucci', 'Prada', 'IDEE'], styles: ['Cat-Eye', 'Oversized', 'Butterfly', 'Round', 'Square', 'Rimless'], types: ['Sunglasses', 'Polarised Sunglasses', 'Gradient Sunglasses'], materials: ['Acetate Frame', 'Metal Frame', 'TR90 Frame'], price: [599, 7999], sizes: FREE, about: 'Full UV400 protection with a statement silhouette.' },
-      Activewear: { brands: ['Nike', 'Adidas', 'Puma', 'HRX', 'Reebok', 'Under Armour', 'Decathlon Kalenji', 'Lululemon'], styles: ['High-Waist', 'Seamless', 'Compression', 'Relaxed', 'Racerback'], types: ['Tights', 'Sports Bra', 'Track Pants', 'Training T-Shirt', 'Yoga Set', 'Running Shorts'], materials: ['Dri-FIT', 'Spandex Blend', 'Quick-Dry Polyester', 'Recycled Nylon'], price: [499, 3499], sizes: APPAREL, about: 'Sweat-wicking, four-way stretch fabric that moves with you.' },
-    },
-  },
-  Kids: {
-    gender: 'Kids',
-    subs: {
-      'Boys Wear': { brands: ['H&M Kids', 'Allen Solly Junior', 'UCB Kids', 'Gini & Jony', 'Babyhug', 'Marks & Spencer', 'Max Kids'], styles: ['Printed', 'Solid', 'Striped', 'Colourblocked', 'Graphic'], types: ['T-Shirt', 'Shirt & Shorts Set', 'Joggers', 'Hoodie', 'Denim Jacket', 'Kurta Set', 'Dungarees'], materials: ['Pure Cotton', 'Organic Cotton', 'Fleece', 'Denim'], price: [299, 1999], sizes: KIDS_WEAR, about: 'Tag-free, skin-friendly fabric built for play.' },
-      'Girls Wear': { brands: ['H&M Kids', 'Hopscotch', 'UCB Kids', 'Gini & Jony', 'Babyhug', 'Cherry Crumble', 'Max Kids'], styles: ['Floral', 'Tiered', 'Printed', 'Smocked', 'Embroidered'], types: ['Dress', 'Frock', 'Top & Skirt Set', 'Leggings', 'Lehenga Choli', 'Jumpsuit', 'Party Dress'], materials: ['Pure Cotton', 'Organic Cotton', 'Tulle', 'Rayon'], price: [299, 2499], sizes: KIDS_WEAR, about: 'Twirl-worthy styles in soft, breathable fabric.' },
-      Toys: { brands: ['LEGO', 'Hot Wheels', 'Funskool', 'Fisher-Price', 'Barbie', 'Hasbro', 'Mattel', 'Skillmatics'], styles: ['Educational', 'Wooden', 'Classic', 'STEM', 'Plush', 'Remote-Control'], types: ['Building Set', 'Toy Car', 'Board Game', 'Soft Toy', 'Puzzle', 'Action Figure', 'Doll Set', 'Activity Kit'], materials: ['BPA-Free Plastic', 'Sustainable Wood', 'Soft Fabric'], price: [199, 4999], sizes: FREE, about: 'Safety-tested, non-toxic and designed to spark imagination.' },
-      'Kids Footwear': { brands: ['Nike Kids', 'Adidas Kids', 'Crocs', 'Bata Kids', 'Skechers Kids', 'Puma Kids', 'Hopscotch'], styles: ['Light-Up', 'Velcro', 'Slip-On', 'Lace-Up', 'Cushioned'], types: ['Sneakers', 'Sandals', 'School Shoes', 'Clogs', 'Boots', 'Sports Shoes'], materials: ['Mesh', 'Synthetic Leather', 'Canvas', 'EVA'], price: [499, 2999], sizes: KIDS_SHOES, about: 'Flexible soles and easy fastening for little feet on the move.' },
-    },
-  },
-  'Home & Living': {
-    gender: 'Unisex',
-    subs: {
-      Decor: { brands: ['Home Centre', 'Chumbak', 'Ellementry', 'Nestasia', 'The Decor Kart', 'IKEA', 'Pure Home + Living'], styles: ['Ceramic', 'Handcrafted', 'Minimal', 'Boho', 'Vintage', 'Nordic'], types: ['Vase', 'Wall Art', 'Photo Frame', 'Table Showpiece', 'Wall Mirror', 'Decorative Tray', 'Bookends'], materials: ['Ceramic', 'Metal', 'Mango Wood', 'Glass', 'Resin'], price: [299, 4999], sizes: FREE, about: 'A statement accent that brings warmth and character to any room.' },
-      Bedsheets: { brands: ['Bombay Dyeing', 'Spaces', 'D’Decor', 'Raymond Home', 'Portico', 'Story@Home', 'Welspun'], styles: ['Solid', 'Floral', 'Striped', 'Geometric', 'Ikat', 'Jaipuri'], types: ['Double Bedsheet Set', 'King Bedsheet Set', 'Fitted Sheet', 'Duvet Cover', 'Comforter', 'Dohar'], materials: ['300 TC Cotton', '400 TC Sateen', 'Organic Cotton', 'Microfibre', 'Linen'], price: [699, 4999], sizes: ['Single', 'Double', 'Queen', 'King'], about: 'Includes pillow covers; soft, breathable and fade-resistant.' },
-      Candles: { brands: ['Iris', 'Bath & Body Works', 'The Man Company', 'Pure Source', 'Nestasia', 'Bella Vita', 'Home Centre'], styles: ['Scented', 'Soy Wax', 'Pillar', 'Jar', 'Tealight', 'Aromatherapy'], types: ['Candle', 'Candle Set', 'Votive Candle', 'Diffuser & Candle Gift Set'], materials: ['Soy Wax', 'Beeswax', 'Paraffin-Free Wax'], price: [199, 1999], sizes: FREE, about: 'Clean-burning wax with notes of vanilla, sandalwood and jasmine.' },
-      'Cushions & Pillows': { brands: ['Home Centre', 'Spaces', 'Chumbak', 'IKEA', 'Story@Home', 'The Sleep Company', 'Swayam'], styles: ['Solid', 'Textured', 'Printed', 'Boho', 'Velvet', 'Embroidered'], types: ['Cushion Cover Set', 'Throw Pillow', 'Sleeping Pillow', 'Memory Foam Pillow', 'Floor Cushion'], materials: ['Cotton', 'Velvet', 'Jute Blend', 'Memory Foam', 'Microfibre'], price: [299, 2499], sizes: FREE, about: 'Plush, supportive and easy to care for.' },
-      'Bags & Pouches': { brands: ['Wildcraft', 'Chumbak', 'Baggit', 'Skybags', 'American Tourister', 'Nestasia', 'Zouk'], styles: ['Printed', 'Quilted', 'Minimal', 'Handwoven', 'Water-Resistant'], types: ['Tote Bag', 'Laptop Backpack', 'Travel Pouch', 'Toiletry Kit', 'Duffle Bag', 'Makeup Pouch', 'Jute Shopping Bag'], materials: ['Canvas', 'Jute', 'Polyester', 'Vegan Leather', 'Recycled Fabric'], price: [299, 3499], sizes: FREE, about: 'Smart compartments and sturdy zips for everyday carry and travel.' },
-      'Kitchen Accessories': { brands: ['Prestige', 'Borosil', 'Milton', 'Wonderchef', 'Pigeon', 'Hawkins', 'Tupperware'], styles: ['Non-Stick', 'Stainless Steel', 'Bamboo', 'Silicone', 'Cast Iron'], types: ['Cookware Set', 'Frying Pan', 'Knife Set', 'Chopping Board', 'Utensil Set', 'Storage Containers', 'Spice Rack'], materials: ['Stainless Steel', 'Hard Anodised Aluminium', 'Bamboo', 'Food-Grade Silicone'], price: [199, 4999], sizes: FREE, about: 'Food-safe, dishwasher-friendly essentials for a better kitchen.' },
-      'Lamps & Lighting': { brands: ['Philips', 'Wipro', 'Home Centre', 'IKEA', 'Syska', 'Ellementry', 'Nestasia'], styles: ['Modern', 'Rattan', 'Industrial', 'Ceramic', 'Smart', 'Vintage'], types: ['Table Lamp', 'Floor Lamp', 'Pendant Light', 'Study Lamp', 'Fairy Lights', 'Wall Sconce'], materials: ['Metal', 'Rattan', 'Ceramic', 'Glass', 'Wood'], price: [499, 6999], sizes: FREE, about: 'Warm, glare-free light that sets the mood; bulb included.' },
-      'Mugs & Drinkware': { brands: ['Chumbak', 'Borosil', 'Milton', 'Nestasia', 'Ellementry', 'Cello', 'Home Centre'], styles: ['Ceramic', 'Hand-Painted', 'Double-Walled', 'Insulated', 'Stoneware', 'Glass'], types: ['Coffee Mug', 'Mug Set', 'Tumbler', 'Tea Cup Set', 'Glass Set', 'Travel Mug'], materials: ['Ceramic', 'Borosilicate Glass', 'Stainless Steel', 'Stoneware'], price: [199, 1999], sizes: FREE, about: 'Microwave-safe and lovely to hold, from the first sip to the last.' },
-      'Plants & Planters': { brands: ['Ugaoo', 'Nurturing Green', 'Chumbak', 'Trust Basket', 'Ellementry', 'Home Centre'], styles: ['Ceramic', 'Self-Watering', 'Hanging', 'Terracotta', 'Metal', 'Concrete'], types: ['Planter', 'Plant with Pot', 'Succulent Set', 'Hanging Planter', 'Planter Stand', 'Money Plant'], materials: ['Ceramic', 'Terracotta', 'Metal', 'Recycled Plastic'], price: [299, 2999], sizes: FREE, about: 'Bring the outdoors in; drainage hole and saucer included.' },
-    },
-  },
-  Electronics: {
-    gender: 'Unisex',
-    subs: {
-      'Mobile Covers': { brands: ['Spigen', 'Casetify', 'OtterBox', 'Ringke', 'DailyObjects', 'Apple', 'Nillkin'], styles: ['Clear', 'Rugged', 'Silicone', 'Leather', 'MagSafe', 'Printed'], types: ['Phone Case', 'Back Cover', 'Flip Cover', 'Wallet Case'], materials: ['TPU', 'Polycarbonate', 'Liquid Silicone', 'Vegan Leather'], price: [199, 2499], sizes: PHONES, about: 'Raised edges protect the screen and camera; drop-tested to 2 metres.' },
-      'Chargers & Cables': { brands: ['Anker', 'Belkin', 'Samsung', 'Apple', 'Portronics', 'boAt', 'Ambrane'], styles: ['Fast', 'Braided', 'GaN', 'Dual-Port', 'Wireless', '65W'], types: ['USB-C Charger', 'Charging Cable', 'Wireless Charger', 'Car Charger', 'Multi-Port Adapter', 'Charging Dock'], materials: ['Nylon Braided', 'PD 3.0', 'Qi-Certified'], price: [299, 3999], sizes: FREE, about: 'Smart chip protection against overheating and overcharging.' },
-      Earphones: { brands: ['boAt', 'JBL', 'Sony', 'Apple', 'Samsung', 'OnePlus', 'Noise', 'Nothing'], styles: ['True Wireless', 'Noise-Cancelling', 'Neckband', 'Open-Ear', 'Gaming'], types: ['Earbuds', 'Earphones', 'In-Ear Headphones'], materials: ['ANC', 'IPX5 Water-Resistant', 'Bluetooth 5.3'], price: [799, 24999], sizes: FREE, about: 'Deep bass, crisp calls with ENC mics and up to 40 hours of playback.' },
-      Headphones: { brands: ['Sony', 'Bose', 'JBL', 'Sennheiser', 'boAt', 'Marshall', 'Skullcandy', 'Apple'], styles: ['Over-Ear', 'On-Ear', 'Noise-Cancelling', 'Studio', 'Gaming', 'Foldable'], types: ['Wireless Headphones', 'Bluetooth Headphones', 'Headset'], materials: ['Active Noise Cancellation', 'Hi-Res Audio', 'Memory Foam Cushions'], price: [1499, 34999], sizes: FREE, about: 'Immersive sound, plush ear cushions and all-day battery life.' },
-      Smartwatches: { brands: ['Apple', 'Samsung', 'Noise', 'boAt', 'Fire-Boltt', 'Amazfit', 'Garmin', 'Fitbit'], styles: ['AMOLED', 'Rugged', 'Round-Dial', 'Slim', 'GPS'], types: ['Smartwatch', 'Fitness Tracker', 'Bluetooth Calling Smartwatch'], materials: ['Aluminium Case', 'Stainless Steel Case', 'Silicone Strap'], price: [1999, 44999], sizes: FREE, about: 'Heart-rate, SpO2 and sleep tracking with 100+ sports modes.' },
-      'Computer Accessories': { brands: ['Logitech', 'Razer', 'HP', 'Dell', 'Keychron', 'Zebronics', 'Portronics', 'Lenovo'], styles: [], types: [], materials: [], price: [399, 12999], sizes: FREE, about: 'Plug-and-play setup with a sturdy build made for long work and gaming sessions.' },
-      Speakers: { brands: ['JBL', 'Sony', 'Marshall', 'boAt', 'Bose', 'Ultimate Ears', 'Amazon Echo'], styles: ['Portable', 'Waterproof', 'Party', 'Smart', 'Mini', 'Retro'], types: ['Bluetooth Speaker', 'Smart Speaker', 'Soundbar', 'Party Speaker'], materials: ['IPX7', 'Bluetooth 5.3', 'Dolby Audio'], price: [999, 24999], sizes: FREE, about: 'Room-filling 360° sound with punchy bass and long battery life.' },
-    },
-  },
-  Beauty: {
-    gender: 'Unisex',
-    subs: {
-      Makeup: { brands: ['MAC', 'Maybelline', 'Lakme', 'Huda Beauty', 'Nykaa Cosmetics', 'Sugar', 'L’Oreal', 'Swiss Beauty'], styles: ['Matte', 'Long-Wear', 'Satin', 'Shimmer', 'Transfer-Proof', 'Hydrating'], types: ['Lipstick', 'Eyeshadow Palette', 'Foundation', 'Kajal', 'Mascara', 'Makeup Brush Set', 'Compact Powder', 'Blush'], materials: ['Vegan', 'Cruelty-Free', 'Paraben-Free'], price: [199, 3999], sizes: FREE, about: 'Highly pigmented, blendable and made to last all day.' },
-      Skincare: { brands: ['Minimalist', 'The Ordinary', 'Cetaphil', 'Plum', 'Mamaearth', 'Neutrogena', 'Clinique', 'Dot & Key'], styles: ['Hydrating', 'Brightening', 'Oil-Free', 'Fragrance-Free', 'Barrier Repair', 'Anti-Ageing'], types: ['Face Serum', 'Moisturiser', 'Sunscreen SPF 50', 'Face Wash', 'Night Cream', 'Toner', 'Face Mask'], materials: ['Niacinamide', 'Hyaluronic Acid', 'Vitamin C', 'Ceramides', 'Retinol'], price: [249, 3499], sizes: FREE, about: 'Dermatologically tested and suitable for all skin types.' },
-      Fragrances: { brands: ['Bella Vita', 'Davidoff', 'Calvin Klein', 'Hugo Boss', 'Versace', 'Skinn by Titan', 'The Man Company', 'Chanel'], styles: ['Woody', 'Floral', 'Citrus', 'Oud', 'Fresh', 'Musky'], types: ['Eau de Parfum', 'Eau de Toilette', 'Perfume Gift Set', 'Body Mist', 'Attar'], materials: ['100 ml', '50 ml', 'Long-Lasting'], price: [499, 9999], sizes: FREE, about: 'A signature scent with top, heart and base notes that linger for hours.' },
-      Haircare: { brands: ['L’Oreal Paris', 'Dove', 'Tresemme', 'WOW Skin Science', 'Mamaearth', 'Philips', 'Dyson', 'Kama Ayurveda'], styles: ['Sulphate-Free', 'Anti-Frizz', 'Volumising', 'Repairing', 'Ayurvedic'], types: ['Shampoo', 'Conditioner', 'Hair Oil', 'Hair Mask', 'Hair Serum', 'Hair Dryer', 'Straightener', 'Detangling Brush'], materials: ['Argan Oil', 'Keratin', 'Onion Oil', 'Biotin'], price: [199, 29999], sizes: FREE, about: 'Nourishes from root to tip for smooth, shiny, healthy hair.' },
-    },
-  },
-  Sports: {
-    gender: 'Unisex',
-    subs: {
-      'Yoga & Mats': { brands: ['Decathlon Domyos', 'Boldfit', 'Lululemon', 'Nivia', 'Strauss', 'Liforme'], styles: ['Anti-Slip', 'Extra-Thick', 'Eco-Friendly', 'Travel', 'Alignment'], types: ['Yoga Mat', 'Yoga Block Set', 'Yoga Strap', 'Yoga Wheel', 'Meditation Cushion'], materials: ['TPE', 'Natural Rubber', 'NBR Foam', 'Cork'], price: [399, 4999], sizes: FREE, about: 'Cushioned support and a grippy surface for every pose.' },
-      'Gym Equipment': { brands: ['Kore', 'Boldfit', 'Decathlon Domyos', 'Cockatoo', 'Nivia', 'PowerMax'], styles: ['Adjustable', 'Rubber-Coated', 'Hex', 'Home Gym', 'Heavy-Duty'], types: ['Dumbbell Set', 'Kettlebell', 'Resistance Bands', 'Skipping Rope', 'Ab Roller', 'Push-Up Bars', 'Weight Plates'], materials: ['Cast Iron', 'Neoprene', 'Latex', 'Steel'], price: [299, 9999], sizes: FREE, about: 'Built tough for home workouts, with a secure, comfortable grip.' },
-      'Bottles & Shakers': { brands: ['Milton', 'Cello', 'Boldfit', 'Borosil', 'Hydro Flask', 'Nike', 'Decathlon'], styles: ['Insulated', 'Leak-Proof', 'Motivational', 'Stainless Steel', 'BPA-Free'], types: ['Water Bottle', 'Protein Shaker', 'Sipper', 'Flask', 'Gym Bottle'], materials: ['Stainless Steel', 'Tritan', 'Borosilicate Glass', 'BPA-Free Plastic'], price: [249, 2999], sizes: ['500 ml', '750 ml', '1 L'], about: 'Keeps drinks cold for 24 hours and hot for 12.' },
-      'Rackets & Balls': { brands: ['Yonex', 'Wilson', 'Nivia', 'Cosco', 'Head', 'Adidas', 'Spalding', 'SG'], styles: ['Pro', 'Training', 'Match', 'Lightweight', 'All-Court'], types: ['Badminton Racket', 'Tennis Racket', 'Football', 'Basketball', 'Cricket Bat', 'Shuttlecock Pack', 'Volleyball'], materials: ['Carbon Graphite', 'Aluminium', 'PU Leather', 'Kashmir Willow'], price: [299, 8999], sizes: FREE, about: 'Match-grade performance and durability for practice and play.' },
-    },
-  },
-};
-
-const REVIEWERS = ['Aarav Mehta', 'Priya Sharma', 'Rohan Iyer', 'Ananya Gupta', 'Vikram Singh', 'Sneha Reddy', 'Kabir Khan', 'Isha Patel', 'Arjun Nair', 'Meera Joshi', 'Aditya Rao', 'Diya Kapoor', 'Nikhil Verma', 'Tara Menon', 'Karan Malhotra', 'Zoya Ali'];
-
-const REVIEW_TEXT = {
-  5: ['Absolutely love it! The quality is excellent for the price.', 'Exactly as shown in the pictures. Highly recommend.', 'Superb quality and super fast delivery.', 'Worth every rupee. Will definitely buy again.', 'Premium feel and great finish. Very happy with this purchase.', 'Got so many compliments already!'],
-  4: ['Good product and fits well. Packaging could be better.', 'Really nice, colour is slightly different from the photo but I like it.', 'Great value for money. Delivery took a day longer than expected.', 'Comfortable and well made. Would recommend.', 'Very good quality, just wish there were more colour options.'],
-  3: ['Decent for the price, nothing extraordinary.', 'Okay product. Quality is average but it does the job.', 'Looks good but the size runs a little small.', 'Average. Expected slightly better finishing.'],
-  2: ['Quality was not what I expected from this brand.', 'Colour faded after a few uses. Not great.', 'Material feels cheap for the price.'],
-  1: ['Did not like it at all, had to return it.', 'Received a different shade than shown. Disappointed.'],
-};
-
-// ---------------------------------------------------------------------------
-// Helpers (a seeded random generator keeps the catalog identical on every run)
-// ---------------------------------------------------------------------------
-
-let seed = 20260930;
-const random = () => {
-  seed = (seed * 1664525 + 1013904223) % 4294967296;
-  return seed / 4294967296;
-};
+let seed = 20261001;
+const random = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
 const pick = (arr) => arr[Math.floor(random() * arr.length)];
-const between = (min, max) => min + random() * (max - min);
 const chance = (p) => random() < p;
-const toPrice = (value) => Math.max(99, Math.round(value / 100) * 100 - 1);
+const between = (a, b) => a + random() * (b - a);
+const price99 = (v) => Math.max(499, Math.round(v / 100) * 100 - 1);
 const sqlDate = (daysAgo) => new Date(Date.now() - daysAgo * 86400000).toISOString().replace('T', ' ').slice(0, 19);
-const imageUrl = (id, width = 800) => `https://images.unsplash.com/photo-${id}?w=${width}&q=80&auto=format&fit=crop`;
-// Extra gallery views are zoomed-in crops of the SAME photo, so every image shows this product
+const imageUrl = (id) => `https://images.unsplash.com/photo-${id}?w=800&q=80&auto=format&fit=crop`;
 const closeUp = (id, zoom, y) => `https://images.unsplash.com/photo-${id}?w=800&h=1000&q=80&auto=format&fit=crop&crop=focalpoint&fp-x=0.5&fp-y=${y}&fp-z=${zoom}`;
 
-// data/catalog-meta.txt: per photo, a type index (base 36) + colour code, derived from the photo's description
-const loadMeta = () => {
-  const map = {};
-  fs.readFileSync(path.join(__dirname, 'data', 'catalog-meta.txt'), 'utf8').split(/\r?\n/).filter(Boolean).forEach(line => {
-    const [key, codes] = line.split('=');
-    map[key] = codes.match(/../g).map(pair => ({ type: parseInt(pair[0], 36), color: COLOR_CODES[pair[1]] }));
-  });
-  return map;
+const PHONES = {
+  Apple: [['iPhone 15 Pro Max', 159900, 'A17 Pro', 8], ['iPhone 15 Pro', 134900, 'A17 Pro', 8], ['iPhone 15', 79900, 'A16 Bionic', 6], ['iPhone 14', 69900, 'A15 Bionic', 6], ['iPhone 13', 59900, 'A15 Bionic', 4]],
+  Samsung: [['Galaxy S24 Ultra', 129999, 'Snapdragon 8 Gen 3', 12], ['Galaxy S24', 79999, 'Exynos 2400', 8], ['Galaxy S23 FE', 49999, 'Exynos 2200', 8], ['Galaxy A55 5G', 39999, 'Exynos 1480', 8], ['Galaxy M35 5G', 19999, 'Exynos 1380', 6]],
+  Google: [['Pixel 8 Pro', 106999, 'Google Tensor G3', 12], ['Pixel 8', 75999, 'Google Tensor G3', 8], ['Pixel 8a', 52999, 'Google Tensor G3', 8]],
+  OnePlus: [['12', 64999, 'Snapdragon 8 Gen 3', 12], ['12R', 39999, 'Snapdragon 8 Gen 2', 8], ['Nord CE4', 24999, 'Snapdragon 7 Gen 3', 8]],
+  Xiaomi: [['14', 69999, 'Snapdragon 8 Gen 3', 12], ['Redmi Note 13 Pro+', 31999, 'Dimensity 7200 Ultra', 8], ['Redmi 13C 5G', 10999, 'Dimensity 6100+', 4]],
+  Motorola: [['Edge 50 Pro', 31999, 'Snapdragon 7 Gen 3', 8], ['G84 5G', 18999, 'Snapdragon 695', 8]],
 };
+const LAPTOPS = {
+  Apple: [['MacBook Air 13 M2', 99900, 'Apple M2'], ['MacBook Air 15 M3', 134900, 'Apple M3'], ['MacBook Pro 14 M3', 169900, 'Apple M3 Pro']],
+  Dell: [['Inspiron 15', 54990], ['XPS 13', 129990], ['G15 Gaming', 84990, null, true]],
+  HP: [['Pavilion 15', 62990], ['Envy x360', 89990], ['Victus Gaming', 74990, null, true]],
+  Lenovo: [['IdeaPad Slim 5', 64990], ['ThinkPad E14', 72990], ['Legion 5 Pro', 129990, null, true]],
+  Asus: [['Vivobook 15', 44990], ['Zenbook 14 OLED', 94990], ['ROG Strix G16', 139990, null, true]],
+  Acer: [['Aspire 7', 59990], ['Nitro V', 69990, null, true]],
+};
+const CAMERAS = {
+  'DSLR Cameras': { Canon: [['EOS 1500D', 37990, 'APS-C', '24.1 MP', '1080p 30fps'], ['EOS 200D II', 59990, 'APS-C', '24.1 MP', '4K 25fps'], ['EOS 90D', 114990, 'APS-C', '32.5 MP', '4K 30fps']], Nikon: [['D5600', 58990, 'APS-C', '24.2 MP', '1080p 60fps'], ['D7500', 89990, 'APS-C', '20.9 MP', '4K 30fps'], ['D850', 249990, 'Full Frame', '45.7 MP', '4K 30fps']] },
+  'Mirrorless Cameras': { Sony: [['Alpha ZV-E10', 61990, 'APS-C', '24.2 MP', '4K 30fps'], ['Alpha 6400', 78990, 'APS-C', '24.2 MP', '4K 30fps'], ['Alpha 7 IV', 214990, 'Full Frame', '33 MP', '4K 60fps']], Canon: [['EOS R50', 69990, 'APS-C', '24.2 MP', '4K 30fps'], ['EOS R8', 149990, 'Full Frame', '24.2 MP', '4K 60fps']], Nikon: [['Z50', 74990, 'APS-C', '20.9 MP', '4K 30fps'], ['Z6 II', 159990, 'Full Frame', '24.5 MP', '4K 60fps']], Fujifilm: [['X-S20', 114990, 'APS-C', '26.1 MP', '6.2K 30fps'], ['X-T5', 154990, 'APS-C', '40.2 MP', '6.2K 30fps']] },
+  'Action Cameras': { GoPro: [['HERO12 Black', 37990, '1/1.9 inch', '27 MP', '5.3K 60fps'], ['HERO11 Black', 32990, '1/1.9 inch', '27 MP', '5.3K 60fps']], DJI: [['Osmo Action 4', 32990, '1/1.3 inch', '10 MP', '4K 120fps']], Insta360: [['X3', 44990, '1/2 inch', '72 MP (360°)', '5.7K 30fps']] },
+};
+const TVS = {
+  Samsung: [['Crystal 4K Vivid', 'LED', 'Tizen', 1.2], ['Neo QLED', 'Mini LED', 'Tizen', 2.2]],
+  LG: [['UR75 4K', 'LED', 'webOS', 1.15], ['OLED evo C3', 'OLED', 'webOS', 3], ['QNED80', 'QNED', 'webOS', 1.6]],
+  Sony: [['Bravia X75L', 'LED', 'Google TV', 1.3], ['Bravia X80L', 'LED', 'Google TV', 1.5], ['Bravia 7', 'Mini LED', 'Google TV', 2.6]],
+  TCL: [['C645 QLED', 'QLED', 'Google TV', 1.1], ['P745', 'LED', 'Google TV', 0.9]],
+  Xiaomi: [['X Pro', 'LED', 'Google TV', 0.95], ['A Pro', 'LED', 'Google TV', 0.8]],
+  OnePlus: [['Y1S Pro', 'LED', 'Android TV', 0.9], ['Q2 Pro', 'QLED', 'Google TV', 1.4]],
+};
+const FRIDGE_BRANDS = ['LG', 'Samsung', 'Whirlpool', 'Haier', 'Godrej', 'Bosch'];
+const FRIDGE_TYPES = [
+  ['Single Door', [185, 215, 235], 'Direct Cool', [15000, 24000]],
+  ['Double Door', [242, 265, 322, 340], 'Frost Free', [25000, 45000]],
+  ['Triple Door', [240, 300], 'Frost Free', [30000, 44000]],
+  ['Side-by-Side', [580, 650], 'Frost Free', [69000, 115000]],
+];
+const AC_BRANDS = ['Daikin', 'Voltas', 'LG', 'Blue Star', 'Hitachi', 'Carrier', 'Lloyd', 'Panasonic'];
+const APPLIANCES = {
+  'Washing Machines': { brands: ['LG', 'Samsung', 'Bosch', 'IFB', 'Whirlpool'], types: [['Front Load', 32000, 46000], ['Top Load', 16000, 26000], ['Semi-Automatic', 10000, 15000]] },
+  'Microwave Ovens': { brands: ['LG', 'Samsung', 'IFB', 'Panasonic', 'Morphy Richards'], types: [['Solo', 6000, 9000], ['Grill', 8000, 12000], ['Convection', 11000, 19000]] },
+  'Vacuum Cleaners': { brands: ['Dyson', 'Eureka Forbes', 'Philips', 'Xiaomi', 'Karcher'], types: [['Cordless Stick', 18000, 52000], ['Robotic', 17000, 45000], ['Wet & Dry', 6000, 12000], ['Canister', 7000, 14000]] },
+};
+
+const IPADS = [['iPad (10th Gen)', 34900, 'A14 Bionic', '10.9 inch Liquid Retina'], ['iPad Air 11 (M2)', 59900, 'Apple M2', '11 inch Liquid Retina'], ['iPad Pro 11 (M4)', 99900, 'Apple M4', '11 inch Ultra Retina XDR'], ['iPad mini (6th Gen)', 49900, 'A15 Bionic', '8.3 inch Liquid Retina']];
+const TABLETS = {
+  Samsung: [['Galaxy Tab S9 FE', 36999, 'Exynos 1380', '10.9 inch'], ['Galaxy Tab S9', 72999, 'Snapdragon 8 Gen 2', '11 inch AMOLED'], ['Galaxy Tab A9+', 18999, 'Snapdragon 695', '11 inch']],
+  Lenovo: [['Tab P12', 26999, 'Dimensity 7050', '12.7 inch 3K'], ['Tab M11', 14999, 'Helio G88', '11 inch']],
+  Xiaomi: [['Pad 6', 26999, 'Snapdragon 870', '11 inch 2.8K'], ['Redmi Pad SE', 12999, 'Snapdragon 680', '11 inch']],
+  OnePlus: [['Pad 2', 39999, 'Snapdragon 8 Gen 3', '12.1 inch 3K'], ['Pad Go', 19999, 'Helio G99', '11.35 inch 2.4K']],
+};
+const HEADPHONES = {
+  Sony: [['WH-1000XM5', 34990, 'Over-Ear', 'Active', '30 hrs'], ['WH-CH720N', 12990, 'Over-Ear', 'Active', '35 hrs']],
+  Bose: [['QuietComfort Ultra', 35900, 'Over-Ear', 'Active', '24 hrs'], ['QuietComfort 45', 29900, 'Over-Ear', 'Active', '24 hrs']],
+  JBL: [['Tune 770NC', 7999, 'Over-Ear', 'Active', '70 hrs'], ['Tune 520BT', 3999, 'On-Ear', 'None', '57 hrs']],
+  Apple: [['AirPods Max', 59900, 'Over-Ear', 'Active', '20 hrs']],
+  Sennheiser: [['Momentum 4 Wireless', 34990, 'Over-Ear', 'Active', '60 hrs']],
+  boAt: [['Rockerz 550', 1999, 'Over-Ear', 'None', '20 hrs'], ['Nirvana 751 ANC', 3999, 'Over-Ear', 'Active', '65 hrs']],
+};
+const WATCHES = {
+  Apple: [['Watch Series 9 GPS 45 mm', 44900, '45 mm', '18 hrs', 'iOS'], ['Watch SE GPS 40 mm', 29900, '40 mm', '18 hrs', 'iOS'], ['Watch Ultra 2', 89900, '49 mm', '36 hrs', 'iOS']],
+  Samsung: [['Galaxy Watch6 44 mm', 32999, '44 mm', '40 hrs', 'Android'], ['Galaxy Watch6 Classic 47 mm', 39999, '47 mm', '40 hrs', 'Android']],
+  Garmin: [['Venu 3', 49990, '45 mm', '14 days', 'Android & iOS'], ['Forerunner 265', 49990, '46 mm', '13 days', 'Android & iOS']],
+  Noise: [['ColorFit Pro 5', 4499, '1.85 inch', '7 days', 'Android & iOS']],
+  Amazfit: [['GTR 4', 16999, '46 mm', '14 days', 'Android & iOS']],
+  boAt: [['Wave Sigma', 1999, '2.01 inch', '7 days', 'Android & iOS']],
+};
+const POWER_BANKS = {
+  Anker: [['PowerCore 10000', 2199, 10000, '22.5W'], ['737 Power Bank', 10999, 24000, '140W']],
+  Xiaomi: [['Power Bank 3i', 1999, 20000, '18W'], ['Pocket Power Bank', 1499, 10000, '22.5W']],
+  Ambrane: [['Stylo 20K', 1699, 20000, '20W'], ['Aerosync Wireless', 2499, 10000, '15W Wireless']],
+  boAt: [['EnergyShroom PB300', 1999, 20000, '22.5W']],
+  Belkin: [['BoostCharge Pro Magnetic', 4999, 5000, '7.5W Wireless']],
+  Portronics: [['Luxcell B 20K', 1799, 20000, '22.5W']],
+};
+const ADAPTERS = {
+  Apple: [['20W USB-C Power Adapter', 1900, '20W', '1 x USB-C', 'PD 3.0'], ['35W Dual USB-C Power Adapter', 5800, '35W', '2 x USB-C', 'PD 3.0']],
+  Samsung: [['25W Super Fast Charger', 1699, '25W', '1 x USB-C', 'PPS'], ['45W Super Fast Charger', 3499, '45W', '1 x USB-C', 'PPS']],
+  Anker: [['Nano 30W Charger', 2499, '30W', '1 x USB-C', 'GaN, PD 3.0'], ['735 GaN 65W Charger', 4999, '65W', '2 x USB-C + 1 x USB-A', 'GaN, PD 3.0']],
+  Belkin: [['BoostCharge 45W Dual Charger', 3999, '45W', '2 x USB-C', 'PD 3.0']],
+  OnePlus: [['SUPERVOOC 80W Power Adapter', 2999, '80W', '1 x USB-A', 'SUPERVOOC']],
+  Portronics: [['Adapto 20W Charger', 699, '20W', '1 x USB-C + 1 x USB-A', 'PD, QC 3.0']],
+};
+
+// Picks a brand: the one recognised in the photo if we sell it, otherwise rotate through the list
+const brandFor = (seen, brands, i) => (brands.includes(seen) ? seen : brands[i % brands.length]);
+
+// Each builder returns { brand, name, subcategory?, price, specs, about }
+const BUILDERS = {
+  Smartphones: (seen, color, i) => {
+    const brand = brandFor(seen, Object.keys(PHONES), i);
+    const [model, base, chip, ram] = pick(PHONES[brand]);
+    const storage = pick(brand === 'Apple' || base > 60000 ? [128, 256, 512] : [128, 256]);
+    const apple = brand === 'Apple';
+    return {
+      brand,
+      name: `${brand} ${model} (${color}, ${apple ? '' : `${ram} GB RAM, `}${storage} GB)`,
+      price: base + (storage === 256 ? (apple ? 10000 : 6000) : storage === 512 ? (apple ? 30000 : 16000) : 0),
+      specs: {
+        RAM: `${ram} GB`, Storage: `${storage} GB`, Display: `${pick(apple ? ['6.1', '6.7'] : ['6.4', '6.6', '6.7', '6.8'])} inch ${apple ? 'Super Retina XDR' : 'AMOLED'}`,
+        Processor: chip, 'Rear Camera': apple ? (model.includes('Pro') ? '48 MP Triple' : '48 MP Dual') : pick(['50 MP Triple', '50 MP Dual', '108 MP Triple', '200 MP Quad']),
+        'Front Camera': apple ? '12 MP' : pick(['13 MP', '16 MP', '32 MP']), Battery: apple ? pick(['3349 mAh', '4383 mAh']) : pick(['5000 mAh', '5500 mAh']),
+        Network: '5G', OS: apple ? 'iOS 17' : 'Android 14', Warranty: '1 Year Manufacturer Warranty',
+      },
+      about: 'Flagship-grade performance, an all-day battery and a pro camera system in your pocket.',
+    };
+  },
+  Laptops: (seen, color, i) => {
+    const brand = brandFor(seen, Object.keys(LAPTOPS), i);
+    const [model, base, chip, gaming] = pick(LAPTOPS[brand]);
+    const apple = brand === 'Apple';
+    const processor = chip || pick(['Intel Core i5 13th Gen', 'Intel Core i7 13th Gen', 'AMD Ryzen 5 7535HS', 'AMD Ryzen 7 7840HS', 'Intel Core Ultra 7']);
+    const ram = gaming ? 16 : pick(apple ? [8, 16] : [8, 16, 16, 32]);
+    const storage = pick(apple ? ['256 GB SSD', '512 GB SSD'] : ['512 GB SSD', '1 TB SSD']);
+    const display = apple ? (model.includes('15') ? '15.3 inch' : model.includes('Pro') ? '14.2 inch' : '13.6 inch') : pick(gaming ? ['15.6 inch', '16 inch'] : ['14 inch', '15.6 inch']);
+    return {
+      brand,
+      name: `${brand} ${model} Laptop (${processor}, ${ram} GB, ${storage})`,
+      price: base + (ram === 32 ? 18000 : ram === 16 && !gaming ? 8000 : 0) + (storage.startsWith('1 TB') ? 7000 : storage.startsWith('512') && apple ? 20000 : 0),
+      specs: {
+        Processor: processor, RAM: `${ram} GB`, Storage: storage, Display: display,
+        Graphics: apple ? 'Integrated Apple GPU' : gaming ? pick(['NVIDIA RTX 4050 6 GB', 'NVIDIA RTX 4060 8 GB']) : 'Integrated',
+        OS: apple ? 'macOS' : 'Windows 11 Home', Usage: gaming ? 'Gaming' : 'Everyday & Work', Weight: gaming ? '2.3 kg' : pick(['1.2 kg', '1.4 kg', '1.7 kg']),
+        Warranty: '1 Year Manufacturer Warranty',
+      },
+      about: 'Fast, cool and quiet, with a crisp display and long battery life for work, study and play.',
+    };
+  },
+  Cameras: (seen, color, i, sub) => {
+    const models = CAMERAS[sub];
+    const brand = brandFor(seen, Object.keys(models), i);
+    const [model, base, sensor, mp, video] = pick(models[brand]);
+    const type = sub.replace(' Cameras', '');
+    const kit = type === 'Action' ? 'Fixed wide-angle lens' : chance(0.6) ? '18-55 mm kit lens' : 'Body only';
+    return {
+      brand,
+      name: `${brand} ${model} ${mp} ${type} Camera${kit === '18-55 mm kit lens' ? ' with 18-55 mm Lens' : type === 'Action' ? '' : ' (Body Only)'}`,
+      price: base + (kit === '18-55 mm kit lens' ? 8000 : 0),
+      specs: { Type: type, Sensor: sensor, Resolution: mp, Video: video, Lens: kit, Connectivity: 'Wi-Fi, Bluetooth', Warranty: '2 Years Manufacturer Warranty' },
+      about: 'Sharp, vibrant photos and smooth video with fast autofocus and intuitive controls.',
+    };
+  },
+  'Smart TVs': (seen, color, i) => {
+    const brand = brandFor(seen, Object.keys(TVS), i);
+    const [model, panel, os, factor] = pick(TVS[brand]);
+    const size = pick(panel === 'OLED' || panel === 'Mini LED' ? [55, 65, 75] : [32, 43, 50, 55, 65]);
+    const resolution = size === 32 ? 'HD Ready' : size === 43 && chance(0.4) ? 'Full HD' : '4K Ultra HD';
+    return {
+      brand,
+      name: `${brand} ${model} ${Math.round(size * 2.54)} cm (${size} inch) ${resolution} Smart ${panel} TV (${os})`,
+      price: price99(size * size * 12 * factor + 6000),
+      specs: {
+        'Screen Size': `${size} inch`, Resolution: resolution, 'Display Type': panel, 'Refresh Rate': factor >= 1.5 ? '120 Hz' : '60 Hz',
+        'Smart OS': os, 'Sound Output': pick(['20 W', '30 W', '40 W Dolby Atmos']), 'HDMI Ports': String(pick([2, 3, 4])), Warranty: '1 Year Comprehensive Warranty',
+      },
+      about: 'Stunning picture quality, immersive sound and all your favourite streaming apps built in.',
+    };
+  },
+  Refrigerators: (seen, color, i) => {
+    const brand = brandFor(seen, FRIDGE_BRANDS, i);
+    const [type, caps, defrost, [lo, hi]] = pick(FRIDGE_TYPES);
+    const cap = pick(caps);
+    const star = type === 'Side-by-Side' ? 3 : pick(type === 'Single Door' ? [2, 3, 4, 5] : [2, 3, 3]);
+    return {
+      brand, subcategory: type,
+      name: `${brand} ${cap} L ${star} Star ${defrost} ${type} Refrigerator (${color})`,
+      price: price99(between(lo, hi) + star * 800),
+      specs: {
+        Type: type, Capacity: `${cap} L`, 'Energy Rating': `${star} Star`, Defrost: defrost, Compressor: chance(0.8) ? 'Inverter' : 'Reciprocatory',
+        Convertible: type === 'Double Door' && chance(0.5) ? 'Yes' : 'No', Warranty: '1 Year on Product, 10 Years on Compressor',
+      },
+      about: 'Keeps food fresh for longer with even cooling, smart storage and low running costs.',
+    };
+  },
+  ACs: (seen, color, i, sub) => {
+    const brand = brandFor(seen, AC_BRANDS, i);
+    const type = sub === 'Window ACs' ? 'Window' : 'Split';
+    const tons = pick(type === 'Window' ? ['1 Ton', '1.5 Ton'] : ['1 Ton', '1.5 Ton', '1.5 Ton', '2 Ton']);
+    const star = pick(['3 Star', '5 Star']);
+    const inverter = type === 'Split' || chance(0.4);
+    const base = 30000 + (tons === '1.5 Ton' ? 6000 : tons === '2 Ton' ? 13000 : 0) + (star === '5 Star' ? 6000 : 0);
+    return {
+      brand,
+      name: `${brand} ${tons} ${star} ${inverter ? 'Inverter ' : ''}${type} AC (Copper, ${color === 'Black' || color === 'Red' ? 'White' : color})`,
+      price: price99(base * (type === 'Window' ? 0.82 : 1) * (['Daikin', 'Hitachi'].includes(brand) ? 1.08 : 1)),
+      specs: {
+        Type: type, Capacity: tons, 'Energy Rating': star, Inverter: inverter ? 'Yes' : 'No', Condenser: 'Copper',
+        'Room Size': tons === '1 Ton' ? 'Up to 110 sq ft' : tons === '1.5 Ton' ? '111 to 150 sq ft' : '151 to 200 sq ft',
+        Refrigerant: 'R32', Warranty: '1 Year on Product, 10 Years on Compressor',
+      },
+      about: 'Fast, even cooling with low power use, anti-bacterial filters and a quiet indoor unit.',
+    };
+  },
+  Appliances: (seen, color, i, sub) => {
+    const spec = APPLIANCES[sub];
+    const brand = brandFor(seen, spec.brands, i);
+    const [type, lo, hi] = pick(spec.types);
+    let name; let specs;
+    if (sub === 'Washing Machines') {
+      const kg = pick([6, 7, 8, 9]);
+      name = `${brand} ${kg} kg 5 Star ${type === 'Semi-Automatic' ? '' : 'Inverter '}${type} Washing Machine (${color})`;
+      specs = { Type: type, Capacity: `${kg} kg`, 'Energy Rating': '5 Star', 'Spin Speed': type === 'Front Load' ? pick(['1200 RPM', '1400 RPM']) : '700 RPM', 'Inverter Motor': type === 'Semi-Automatic' ? 'No' : 'Yes', Warranty: '2 Years on Product, 10 Years on Motor' };
+    } else if (sub === 'Microwave Ovens') {
+      const litres = type === 'Solo' ? pick([20, 23]) : pick([23, 28, 32]);
+      name = `${brand} ${litres} L ${type} Microwave Oven (${color})`;
+      specs = { Type: type, Capacity: `${litres} L`, Power: pick(['800 W', '900 W', '1000 W']), 'Auto Cook Menus': String(pick([50, 100, 200])), Warranty: '1 Year on Product, 5 Years on Magnetron' };
+    } else {
+      name = `${brand} ${type} Vacuum Cleaner (${color})`;
+      specs = { Type: type, Power: type === 'Robotic' ? '40 W' : pick(['600 W', '1200 W', '1600 W']), Bagless: 'Yes', 'Dust Capacity': pick(['0.5 L', '0.8 L', '15 L', '20 L']), Warranty: '1 Year Manufacturer Warranty' };
+    }
+    return { brand, name, price: price99(between(lo, hi) * (brand === 'Dyson' ? 1.4 : 1)), specs, about: 'Reliable, energy-efficient and easy to use, built for Indian homes.' };
+  },
+};
+
+BUILDERS.iPads = (seen, color) => {
+  const [model, base, chip, display] = pick(IPADS);
+  const storage = pick(model.includes('Pro') ? [256, 512] : [64, 128, 256].slice(model.includes('Air') ? 1 : 0));
+  const cellular = chance(0.3);
+  return {
+    brand: 'Apple',
+    name: `Apple ${model} ${cellular ? 'Wi-Fi + Cellular' : 'Wi-Fi'} ${storage} GB (${color})`,
+    price: base + (storage >= 256 ? 10000 : 0) + (storage === 512 ? 20000 : 0) + (cellular ? 15000 : 0),
+    specs: { Display: display, Chip: chip, Storage: `${storage} GB`, Connectivity: cellular ? 'Wi-Fi + Cellular' : 'Wi-Fi', 'Rear Camera': '12 MP', 'Apple Pencil': model.includes('Pro') || model.includes('Air') ? 'Apple Pencil Pro' : 'Apple Pencil (USB-C)', Battery: 'Up to 10 hours', OS: 'iPadOS 17', Warranty: '1 Year Manufacturer Warranty' },
+    about: 'Powerful, portable and versatile for notes, streaming, drawing and work on the go.',
+  };
+};
+BUILDERS.Tablets = (seen, color, i) => {
+  const brand = brandFor(seen, Object.keys(TABLETS), i);
+  const [model, base, chip, display] = pick(TABLETS[brand]);
+  const ram = base > 30000 ? pick([8, 12]) : pick([4, 6, 8]);
+  const storage = base > 30000 ? pick([128, 256]) : pick([64, 128]);
+  const lte = chance(0.3);
+  return {
+    brand,
+    name: `${brand} ${model} (${ram} GB RAM, ${storage} GB, ${lte ? 'Wi-Fi + 5G' : 'Wi-Fi'}, ${color})`,
+    price: base + (storage === 256 ? 6000 : 0) + (lte ? 5000 : 0),
+    specs: { Display: display, Processor: chip, RAM: `${ram} GB`, Storage: `${storage} GB`, Connectivity: lte ? 'Wi-Fi + 5G' : 'Wi-Fi', Battery: pick(['7040 mAh', '8000 mAh', '8840 mAh', '9510 mAh']), 'Stylus Support': base > 25000 ? 'Yes' : 'No', OS: 'Android 14', Warranty: '1 Year Manufacturer Warranty' },
+    about: 'A big, bright screen for streaming, study and gaming with long battery life.',
+  };
+};
+BUILDERS.Headphones = (seen, color, i) => {
+  const brand = brandFor(seen, Object.keys(HEADPHONES), i);
+  const [model, base, type, anc, battery] = pick(HEADPHONES[brand]);
+  return {
+    brand,
+    name: `${brand} ${model} Wireless ${anc === 'Active' ? 'Noise Cancelling ' : ''}Headphones (${color})`,
+    price: base,
+    specs: { Type: type, Connectivity: 'Bluetooth 5.3', 'Noise Cancellation': anc === 'Active' ? 'Active (ANC)' : 'No', 'Battery Life': battery, 'Driver Size': pick(['30 mm', '40 mm', '50 mm']), Microphone: 'Yes', 'Fast Charging': 'Yes', Warranty: '1 Year Manufacturer Warranty' },
+    about: 'Rich, detailed sound with deep bass, comfortable cushions and all-day battery.',
+  };
+};
+BUILDERS.Smartwatches = (seen, color, i) => {
+  const brand = brandFor(seen, Object.keys(WATCHES), i);
+  const [model, base, size, battery, os] = pick(WATCHES[brand]);
+  return {
+    brand,
+    name: `${brand} ${model} Smartwatch (${color} Strap)`,
+    price: base,
+    specs: { Display: 'AMOLED', 'Case / Screen Size': size, 'Battery Life': battery, GPS: base > 10000 ? 'Built-in GPS' : 'Connected GPS', 'Water Resistance': base > 10000 ? '5 ATM' : 'IP68', 'Bluetooth Calling': 'Yes', 'Health Tracking': 'Heart rate, SpO2, Sleep', 'Compatible With': os, Warranty: '1 Year Manufacturer Warranty' },
+    about: 'Track your health and fitness, take calls and get notifications right on your wrist.',
+  };
+};
+BUILDERS['Power Banks'] = (seen, color, i) => {
+  const brand = brandFor(seen, Object.keys(POWER_BANKS), i);
+  const [model, base, mah, output] = pick(POWER_BANKS[brand]);
+  return {
+    brand,
+    name: `${brand} ${model} ${mah} mAh ${output} Power Bank (${color})`,
+    price: base,
+    specs: { Capacity: `${mah} mAh`, 'Max Output': output, Ports: mah >= 20000 ? '2 x USB-A + 1 x USB-C' : '1 x USB-A + 1 x USB-C', 'Fast Charging': 'PD 3.0 & QC 3.0', Wireless: output.includes('Wireless') ? 'Yes' : 'No', Weight: mah >= 20000 ? '420 g' : '220 g', Warranty: '1 Year Manufacturer Warranty' },
+    about: 'Charge your phone, earbuds and more on the go, with multi-layer safety protection.',
+  };
+};
+BUILDERS.Adapters = (seen, color, i) => {
+  const brand = brandFor(seen, Object.keys(ADAPTERS), i);
+  const [model, base, watts, ports, tech] = pick(ADAPTERS[brand]);
+  return {
+    brand,
+    name: `${brand} ${model} (${color === 'Black' ? 'Black' : 'White'})`,
+    price: base,
+    specs: { Type: 'Wall Charger', Output: watts, Ports: ports, Technology: tech, 'Cable Included': chance(0.4) ? 'Yes' : 'No', 'Compatible With': 'Phones, tablets & laptops (USB-C)', Warranty: '1 Year Manufacturer Warranty' },
+    about: 'Fast, safe charging with built-in protection against overheating and overcharging.',
+  };
+};
+
+const GROUPS = {
+  'Mobiles/Smartphones': BUILDERS.Smartphones,
+  'Laptops/Laptops': BUILDERS.Laptops,
+  'Cameras/DSLR Cameras': BUILDERS.Cameras,
+  'Cameras/Mirrorless Cameras': BUILDERS.Cameras,
+  'Cameras/Action Cameras': BUILDERS.Cameras,
+  'TVs/Smart TVs': BUILDERS['Smart TVs'],
+  'Refrigerators/Refrigerators': BUILDERS.Refrigerators,
+  'Air Conditioners/Split ACs': BUILDERS.ACs,
+  'Air Conditioners/Window ACs': BUILDERS.ACs,
+  'Home Appliances/Washing Machines': BUILDERS.Appliances,
+  'Home Appliances/Microwave Ovens': BUILDERS.Appliances,
+  'Home Appliances/Vacuum Cleaners': BUILDERS.Appliances,
+  'Tablets/iPads': BUILDERS.iPads,
+  'Tablets/Tablets': BUILDERS.Tablets,
+  'Accessories/Headphones': BUILDERS.Headphones,
+  'Accessories/Smartwatches': BUILDERS.Smartwatches,
+  'Accessories/Power Banks': BUILDERS['Power Banks'],
+  'Accessories/Adapters': BUILDERS.Adapters,
+};
+
+const REVIEW_TEXT = {
+  5: ['Excellent product, works exactly as described. Highly recommended!', 'Superb performance and build quality. Fast delivery too.', 'Worth every rupee. Setup was quick and easy.', 'Very happy with this purchase, the features are fantastic.'],
+  4: ['Very good product. Packaging could have been better.', 'Great value for money, performs well for daily use.', 'Good product, installation took a day longer than expected.'],
+  3: ['Decent for the price, but nothing extraordinary.', 'Works fine, although battery/energy use is a bit higher than claimed.'],
+  2: ['Average performance, expected more from this brand.', 'Had a minor issue, customer support helped but it took time.'],
+  1: ['Received a faulty unit, had to get it replaced.'],
+};
+const REVIEWERS = ['Aarav Mehta', 'Priya Sharma', 'Rohan Iyer', 'Ananya Gupta', 'Vikram Singh', 'Sneha Reddy', 'Kabir Khan', 'Isha Patel', 'Arjun Nair', 'Meera Joshi', 'Aditya Rao', 'Diya Kapoor'];
 
 const loadImages = () => {
-  const file = path.join(__dirname, 'data', 'catalog-images.txt');
   const map = {};
-  fs.readFileSync(file, 'utf8').split(/\r?\n/).filter(Boolean).forEach(line => {
+  fs.readFileSync(path.join(__dirname, 'data', 'electronics-images.txt'), 'utf8').split(/\r?\n/).filter(Boolean).forEach(line => {
     const [key, list] = line.split('=');
-    map[key] = list.split(',').map(entry => {
-      const [id, color] = entry.split(':');
-      return { id, color };
-    });
+    map[key] = list.split(',').map(entry => { const [id, color, brand] = entry.split(':'); return { id, color, brand }; });
   });
   return map;
 };
 
-const sizeSubset = (sizes) => {
-  if (sizes.length <= 3) return sizes;
-  // Most products come in most sizes; a few are missing the ends of the range
-  const start = chance(0.25) ? 1 : 0;
-  const end = sizes.length - (chance(0.25) ? 1 : 0);
-  return sizes.slice(start, end);
-};
-
-const skewedDiscount = () => {
-  const r = random();
-  if (r < 0.15) return Math.round(between(5, 15));
-  if (r < 0.55) return Math.round(between(15, 40));
-  if (r < 0.9) return Math.round(between(40, 60));
-  return Math.round(between(60, 75));
-};
-
-const generateProducts = (images, meta) => {
+const generateProducts = () => {
+  const images = loadImages();
   const products = [];
-  for (const [category, { gender, subs }] of Object.entries(CATALOG)) {
-    for (const [subcategory, spec] of Object.entries(subs)) {
-      const photos = images[`${category}/${subcategory}`];
-      const key = `${category}/${subcategory}`;
-      if (!photos || photos.length < 20) throw new Error(`Not enough photos for ${key}`);
-      if (!meta[key] || meta[key].length !== photos.length) throw new Error(`Missing photo details for ${key}`);
-
-      photos.forEach((photo, i) => {
-        const brand = spec.brands[i % spec.brands.length];
-        // Type and colour come from what is actually in the photo, so the name matches the picture
-        const type = TYPE_RULES[key][meta[key][i].type][1];
-        const color = meta[key][i].color || photo.color;
-        const name = `${brand} ${color} ${type}`;
-        const gallery = [imageUrl(photo.id), closeUp(photo.id, 1.6, 0.5), closeUp(photo.id, 2.2, 0.4)];
-
-        const rating = Math.round(between(3.2, 4.9) * 10) / 10;
-        const ratingCount = Math.round(Math.exp(between(Math.log(12), Math.log(9000))));
-        const stockRoll = random();
-        const stock = stockRoll < 0.03 ? 0 : stockRoll < 0.1 ? Math.round(between(1, 5)) : Math.round(between(12, 180));
-
-        products.push({
-          name,
-          brand,
-          description: `${color} ${type.toLowerCase()} by ${brand}. ${spec.about}`,
-          category,
-          subcategory,
-          gender,
-          price: toPrice(between(spec.price[0], spec.price[1])),
-          discount_percent: skewedDiscount(),
-          rating,
-          rating_count: ratingCount,
-          stock,
-          colors: JSON.stringify([color]),
-          sizes: JSON.stringify(sizeSubset(spec.sizes)),
-          images: JSON.stringify(gallery),
-          created_at: sqlDate(between(0, 120)),
-        });
+  for (const [key, build] of Object.entries(GROUPS)) {
+    const [category, sub] = key.split('/');
+    (images[key] || []).forEach((photo, i) => {
+      const p = build(photo.brand, photo.color, i, sub);
+      const discount = pick([5, 8, 10, 12, 15, 18, 20, 25, 30, 35, 40]);
+      const stockRoll = random();
+      products.push({
+        name: p.name, brand: p.brand, category, subcategory: p.subcategory || sub, gender: 'Unisex',
+        description: `${p.name}. ${p.about}`,
+        price: price99(p.price * (100 / (100 - discount))), discount_percent: discount,
+        rating: Math.round(between(3.6, 4.8) * 10) / 10, rating_count: Math.round(Math.exp(between(Math.log(20), Math.log(12000)))),
+        stock: stockRoll < 0.05 ? 0 : stockRoll < 0.15 ? Math.round(between(1, 5)) : Math.round(between(10, 120)),
+        colors: JSON.stringify([photo.color]), sizes: '[]',
+        images: JSON.stringify([imageUrl(photo.id), closeUp(photo.id, 1.6, 0.5), closeUp(photo.id, 2.2, 0.45)]),
+        specs: JSON.stringify(p.specs),
+        created_at: sqlDate(between(0, 120)),
       });
-    }
+    });
   }
   return products;
 };
 
-const reviewRating = (productRating) => {
-  // Mostly close to the product's average rating
-  const r = Math.round(productRating + between(-1.4, 1.1));
-  return Math.min(5, Math.max(1, r));
-};
-
-// ---------------------------------------------------------------------------
-
 const seedDatabase = async () => {
   try {
     console.log('Seeding database...');
-
     db.exec(`
-      DELETE FROM order_items;
-      DELETE FROM orders;
-      DELETE FROM addresses;
-      DELETE FROM wishlist_items;
-      DELETE FROM cart_items;
-      DELETE FROM reviews;
-      DELETE FROM coupons;
-      DELETE FROM offers;
-      DELETE FROM products;
-      DELETE FROM users;
+      DELETE FROM order_status_history; DELETE FROM inventory_movements; DELETE FROM order_items; DELETE FROM orders;
+      DELETE FROM addresses; DELETE FROM wishlist_items; DELETE FROM cart_items; DELETE FROM reviews;
+      DELETE FROM coupons; DELETE FROM offers; DELETE FROM products; DELETE FROM users;
       UPDATE sqlite_sequence SET seq = 0;
     `);
 
-    // 1. Users: the demo account plus a few reviewers (their passwords are random and unusable)
-    const insertUser = db.prepare('INSERT INTO users (name, email, password_hash, phone, gender) VALUES (?, ?, ?, ?, ?)');
-    insertUser.run('Demo User', 'demo@stylehub.com', await bcrypt.hash('Demo@123', 10), '9876543210', 'Unisex');
-    const insertAdmin = db.prepare("INSERT INTO users (name, email, password_hash, phone, gender, role) VALUES (?, ?, ?, ?, ?, 'admin')");
-    insertAdmin.run('Store Admin', 'admin@stylehub.com', await bcrypt.hash('Admin@123', 10), null, null);
+    const insertUser = db.prepare('INSERT INTO users (name, email, password_hash, phone, gender, role) VALUES (?, ?, ?, ?, ?, ?)');
+    insertUser.run('Demo User', 'demo@electrohub.com', await bcrypt.hash('Demo@123', 10), '9876543210', null, 'customer');
+    insertUser.run('Store Admin', 'admin@electrohub.com', await bcrypt.hash('Admin@123', 10), null, null, 'admin');
     const reviewerHash = await bcrypt.hash(`${Date.now()}-${Math.random()}`, 4);
-    const reviewerIds = REVIEWERS.map((name, i) =>
-      insertUser.run(name, `reviewer${i + 1}@example.com`, reviewerHash, null, null).lastInsertRowid
-    );
-    console.log(`Seeded demo user and ${reviewerIds.length} reviewers.`);
+    const reviewerIds = REVIEWERS.map((name, i) => insertUser.run(name, `reviewer${i + 1}@example.com`, reviewerHash, null, null, 'customer').lastInsertRowid);
 
-    // 2. Coupons
-    const insertCoupon = db.prepare(`
-      INSERT INTO coupons (code, discount_type, discount_value, min_order, expires_at)
-      VALUES (?, ?, ?, ?, datetime('now', '+1 year'))
-    `);
+    const insertCoupon = db.prepare(`INSERT INTO coupons (code, discount_type, discount_value, min_order, expires_at) VALUES (?, ?, ?, ?, datetime('now', '+1 year'))`);
     insertCoupon.run('WELCOME10', 'PERCENTAGE', 10, 500);
-    insertCoupon.run('FLAT200', 'FLAT', 200, 1000);
-    insertCoupon.run('STYLE20', 'PERCENTAGE', 20, 1500);
-    insertCoupon.run('GADGET15', 'PERCENTAGE', 15, 2000);
-    insertCoupon.run('MEGA500', 'FLAT', 500, 3999);
-    console.log('Coupons seeded.');
+    insertCoupon.run('FLAT1000', 'FLAT', 1000, 15000);
+    insertCoupon.run('BANK7', 'PERCENTAGE', 7, 30000);
+    insertCoupon.run('MEGA5000', 'FLAT', 5000, 75000);
 
-    // Home page banners and header ticker (editable from the admin panel)
     const insertOffer = db.prepare('INSERT INTO offers (title, subtitle, cta_label, link, image, placement, position) VALUES (?, ?, ?, ?, ?, ?, ?)');
     const u = (id, w) => `https://images.unsplash.com/photo-${id}?w=${w}&q=80&auto=format&fit=crop`;
-    insertOffer.run('The New Season Edit', 'Fresh fits, festive colour and everyday essentials, all in one place.', 'Shop Women', '/products/Women', u('1483985988355-763728e1935b', 1400), 'hero', 1);
-    insertOffer.run('Sneaker drop', 'Up to 50% off top brands', 'Shop sneakers', '/products/Men?subcategory=Sneakers', u('1542291026-7eec264c27ff', 900), 'hero', 2);
-    insertOffer.run('Sound on', 'Earbuds & headphones', 'Explore', '/products/Electronics', u('1505740420928-5e560c06d30e', 700), 'hero', 3);
-    insertOffer.run('Home refresh', 'Decor, candles & more', 'Explore', '/products/Home%20%26%20Living', u('1616486338812-3dadae4b4ace', 700), 'hero', 4);
-    [
-      'Free delivery on orders above ₹999',
-      'Use code WELCOME10 for 10% off your first order',
-      'Easy 14-day returns & exchanges',
-      'Pay instantly with any UPI app: scan the QR at checkout',
-      'New: search with a photo from your camera or gallery',
+    insertOffer.run('Upgrade your tech', 'Laptops, phones and more from the brands you trust, with up to 40% off.', 'Shop laptops', '/products/Laptops', u('1496181133206-80ce9b88a853', 1400), 'hero', 1);
+    insertOffer.run('Latest smartphones', 'iPhone, Galaxy, Pixel & more', 'Shop mobiles', '/products/Mobiles', u('1511707171634-5f897ff02aa9', 900), 'hero', 2);
+    insertOffer.run('4K Smart TVs', 'Big screens, bigger savings', 'Explore', '/products/TVs', u('1593359677879-a4bb92f829d1', 700), 'hero', 3);
+    insertOffer.run('Cameras for creators', 'DSLR, mirrorless & action', 'Explore', '/products/Cameras', u('1502982720700-bfff97f2ecac', 700), 'hero', 4);
+    ['Free delivery on orders above ₹999', 'Use code WELCOME10 for 10% off your first order', 'Flat ₹1,000 off above ₹15,000 with FLAT1000',
+      'Pay instantly with any UPI app: scan the QR at checkout', 'Brand warranty on every product · 7-day replacement',
     ].forEach((text, i) => insertOffer.run(text, null, null, null, null, 'ticker', i + 1));
-    console.log('Offers seeded.');
 
-    // 3. Products
-    const products = generateProducts(loadImages(), loadMeta());
+    const products = generateProducts();
     const insertProduct = db.prepare(`
-      INSERT INTO products
-      (name, brand, description, category, subcategory, gender, price, discount_percent, rating, rating_count, stock, colors, sizes, images, created_at)
-      VALUES (@name, @brand, @description, @category, @subcategory, @gender, @price, @discount_percent, @rating, @rating_count, @stock, @colors, @sizes, @images, @created_at)
+      INSERT INTO products (name, brand, description, category, subcategory, gender, price, discount_percent, rating, rating_count, stock, colors, sizes, images, specs, created_at)
+      VALUES (@name, @brand, @description, @category, @subcategory, @gender, @price, @discount_percent, @rating, @rating_count, @stock, @colors, @sizes, @images, @specs, @created_at)
     `);
+    const insertMovement = db.prepare("INSERT INTO inventory_movements (product_id, change, stock_after, reason, reference, created_at) VALUES (?, ?, ?, 'Initial stock', 'Opening balance', ?)");
     const insertReview = db.prepare('INSERT INTO reviews (user_id, product_id, rating, comment, created_at) VALUES (?, ?, ?, ?, ?)');
-
     let reviewCount = 0;
     db.transaction(() => {
       for (const p of products) {
-        const productId = insertProduct.run(p).lastInsertRowid;
-        // About half the products get a handful of written reviews
-        if (chance(0.5)) {
-          const reviewers = [...reviewerIds].sort(() => random() - 0.5).slice(0, Math.round(between(2, 6)));
-          for (const userId of reviewers) {
-            const rating = reviewRating(p.rating);
-            insertReview.run(userId, productId, rating, pick(REVIEW_TEXT[rating]), sqlDate(between(0, 90)));
+        const id = insertProduct.run(p).lastInsertRowid;
+        insertMovement.run(id, p.stock, p.stock, p.created_at);
+        if (chance(0.6)) {
+          for (const userId of [...reviewerIds].sort(() => random() - 0.5).slice(0, Math.round(between(2, 5)))) {
+            const rating = Math.min(5, Math.max(1, Math.round(p.rating + between(-1.3, 1))));
+            insertReview.run(userId, id, rating, pick(REVIEW_TEXT[rating]), sqlDate(between(0, 90)));
             reviewCount++;
           }
         }
       }
     })();
 
-    const perSub = db.prepare('SELECT MIN(c) AS min FROM (SELECT COUNT(*) AS c FROM products GROUP BY category, subcategory)').get();
-    console.log(`Seeded ${products.length} products (at least ${perSub.min} per subcategory) and ${reviewCount} reviews.`);
+    const perCat = db.prepare('SELECT category, COUNT(*) AS n FROM products GROUP BY category').all().map(r => `${r.category}: ${r.n}`).join(', ');
+    console.log(`Seeded ${products.length} products (${perCat}) and ${reviewCount} reviews.`);
     console.log('Seeding completed successfully!');
   } catch (err) {
     console.error('Error seeding database:', err);

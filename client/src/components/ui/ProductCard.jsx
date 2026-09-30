@@ -8,6 +8,10 @@ import { AuthContext } from '../../context/AuthContext';
 import { UIContext } from '../../context/UIContext';
 import { COLOR_SWATCHES } from '../../utils/format';
 
+// A few headline specs per product type, e.g. "8 GB · 256 GB · 5000 mAh"
+const KEY_SPECS = ['RAM', 'Storage', 'Processor', 'Screen Size', 'Resolution', 'Capacity', 'Energy Rating', 'Type', 'Sensor', 'Video', 'Battery'];
+export const keySpecs = (product) => KEY_SPECS.map(k => product.specs?.[k]).filter(Boolean).slice(0, 3);
+
 const ProductCard = ({ product, className = '' }) => {
   const [imgLoaded, setImgLoaded] = useState(false);
   const { wishlist, addToWishlist, removeFromWishlist } = useContext(WishlistContext);
@@ -84,7 +88,8 @@ const ProductCard = ({ product, className = '' }) => {
             </div>
           )}
         </div>
-        <p className="mb-1.5 truncate text-sm text-muted">{title}</p>
+        <p className="truncate text-sm text-muted">{title}</p>
+        {keySpecs(product).length > 0 && <p className="mb-1.5 mt-0.5 truncate text-xs font-semibold text-muted">{keySpecs(product).join(' · ')}</p>}
         <Price product={product} className="mt-auto" />
       </Link>
     </article>

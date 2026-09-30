@@ -21,6 +21,8 @@ import NotFound from './pages/NotFound';
 import ProductListing from './pages/ProductListing';
 import ProductDetail from './pages/ProductDetail';
 import HelpPage from './pages/HelpPage';
+import TrackOrder from './pages/TrackOrder';
+import AdminInventory from './pages/admin/AdminInventory';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminProducts from './pages/admin/AdminProducts';
@@ -66,6 +68,7 @@ function App() {
                         <Route path="/login" element={<Login />} />
                         <Route path="/register" element={<Register />} />
                         <Route path="/help/:slug" element={<HelpPage />} />
+                        <Route path="/track" element={<TrackOrder />} />
                         <Route path="/cart" element={protect(<Cart />)} />
                         <Route path="/wishlist" element={protect(<Wishlist />)} />
                         <Route path="/checkout" element={protect(<Checkout />)} />
@@ -75,6 +78,7 @@ function App() {
                           <Route index element={<AdminDashboard />} />
                           <Route path="products" element={<AdminProducts />} />
                           <Route path="orders" element={<AdminOrders />} />
+                          <Route path="inventory" element={<AdminInventory />} />
                           <Route path="coupons" element={<AdminCoupons />} />
                           <Route path="offers" element={<AdminOffers />} />
                         </Route>

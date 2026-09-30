@@ -3,6 +3,7 @@ const db = require('../db');
 const { successResponse, errorResponse } = require('../utils/response');
 const { buildUpiPayment } = require('../utils/upi');
 const { UPI_ID, UPI_PAYEE_NAME, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET } = require('../config/payment');
+const { addHistory } = require('../utils/inventory');
 
 const cardEnabled = () => Boolean(RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET);
 
@@ -46,6 +47,7 @@ exports.confirmUpiPayment = (req, res) => {
     if (duplicate) return errorResponse(res, 400, 'This UTR has already been used for another order');
 
     db.prepare("UPDATE orders SET payment_status = 'Verifying', payment_ref = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(utr, order.id);
+    addHistory(order.id, 'Payment submitted', `UPI reference ${utr}`);
     return successResponse(res, 200, { paymentStatus: 'Verifying' }, 'Thanks! We are verifying your payment.');
   } catch (error) {
     return errorResponse(res, 500, 'Server error');
@@ -102,6 +104,7 @@ exports.verifyRazorpayPayment = (req, res) => {
     if (!valid) return errorResponse(res, 400, 'Payment verification failed');
 
     db.prepare("UPDATE orders SET payment_status = 'Paid', payment_ref = ?, status = 'Confirmed', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(razorpay_payment_id, order.id);
+    addHistory(order.id, 'Confirmed', 'Card payment received');
     return successResponse(res, 200, { paymentStatus: 'Paid' }, 'Payment successful');
   } catch (error) {
     return errorResponse(res, 500, 'Server error');

@@ -5,13 +5,14 @@ const { successResponse, errorResponse } = require('../utils/response');
 const SELLING_PRICE = '(price * (100 - discount_percent) / 100)';
 
 // Fields a search term is matched against. Hyphens are stripped so "tshirt" finds "T-Shirt".
-const SEARCH_FIELDS = ['name', 'brand', 'category', 'subcategory', 'colors', 'description']
+const SEARCH_FIELDS = ['name', 'brand', 'category', 'subcategory', 'colors', 'specs', 'description']
   .map(f => `REPLACE(LOWER(${f}), '-', '')`);
 
 const SYNONYMS = {
-  tee: 'tshirt', tees: 'tshirt', earbud: 'earphone', earbuds: 'earphone', airpods: 'earphone',
-  mobile: 'phone', purse: 'handbag', sneaker: 'sneaker', trainers: 'sneaker', kurti: 'kurti',
-  lipstick: 'lip', specs: 'glasses', shades: 'sunglass', cushion: 'cushion', pillow: 'pillow',
+  mobile: 'phone', mobiles: 'phone', smartphone: 'phone', television: 'tv', tvs: 'tv', fridge: 'refrigerator',
+  fridges: 'refrigerator', ac: 'air conditioner', acs: 'air conditioner', notebook: 'laptop', dslr: 'dslr',
+  washer: 'washing', microwave: 'microwave', hoover: 'vacuum', powerbank: 'power bank', powerbanks: 'power bank',
+  headphone: 'headphone', headset: 'headphone', earphones: 'headphone', tab: 'tablet', charger: 'charger', smartwatches: 'smartwatch',
 };
 
 const normalizeTerm = (raw) => {
@@ -26,8 +27,15 @@ const parseProduct = (p) => {
   p.colors = JSON.parse(p.colors || '[]');
   p.sizes = JSON.parse(p.sizes || '[]');
   p.images = JSON.parse(p.images || '[]');
+  p.specs = JSON.parse(p.specs || '{}');
   return p;
 };
+
+// Specification filters arrive as spec_<Key>=value1,value2 (e.g. spec_RAM=8 GB,16 GB)
+const SPEC_KEY = /^[\w .&()/-]{1,40}$/;
+const specFilters = (q) => Object.entries(q)
+  .filter(([k, v]) => k.startsWith('spec_') && v && SPEC_KEY.test(k.slice(5)))
+  .map(([k, v]) => [k.slice(5), csv(v)]);
 
 const csv = (value) => String(value || '').split(',').map(v => v.trim()).filter(Boolean);
 
@@ -68,6 +76,11 @@ const buildFilters = (q, skip = null) => {
   if (skip !== 'price') {
     if (q.minPrice) { where.push(`${SELLING_PRICE} >= ?`); params.push(Number(q.minPrice)); }
     if (q.maxPrice) { where.push(`${SELLING_PRICE} <= ?`); params.push(Number(q.maxPrice)); }
+  }
+  for (const [key, values] of specFilters(q)) {
+    if (skip === `spec_${key}`) continue;
+    where.push(`json_extract(specs, ?) IN (${values.map(() => '?').join(',')})`);
+    params.push(`$."${key}"`, ...values);
   }
   if (q.minRating) { where.push('rating >= ?'); params.push(Number(q.minRating)); }
   if (q.discount) { where.push('discount_percent >= ?'); params.push(Number(q.discount)); }
@@ -124,6 +137,21 @@ exports.getProducts = (req, res) => {
     };
     const priceRows = facetRows('price');
 
+    // Specification facets for the current listing (only keys with a useful number of choices)
+    const specFacets = {};
+    const specRows = db.prepare(`SELECT specs FROM products WHERE ${where}`).all(...params.slice(0, params.length - (q.boostColor ? 1 : 0)));
+    const keys = new Set(specRows.flatMap(r => Object.keys(JSON.parse(r.specs || '{}'))));
+    for (const key of keys) {
+      if (['Warranty', 'Model'].includes(key)) continue;
+      const f = buildFilters(q, `spec_${key}`);
+      const counts = {};
+      db.prepare(`SELECT json_extract(specs, ?) AS v FROM products WHERE ${f.where}`).all(`$."${key}"`, ...f.params)
+        .forEach(({ v }) => { if (v) counts[v] = (counts[v] || 0) + 1; });
+      const values = Object.entries(counts).map(([value, count]) => ({ value, count }))
+        .sort((a, b) => (parseFloat(a.value) || 0) - (parseFloat(b.value) || 0) || a.value.localeCompare(b.value));
+      if (values.length >= 2 && values.length <= 14) specFacets[key] = values;
+    }
+
     return successResponse(res, 200, {
       products,
       pagination: { total, page, limit, pages: Math.ceil(total / limit) },
@@ -132,6 +160,7 @@ exports.getProducts = (req, res) => {
         brands: countBy(facetRows('brand'), 'brand'),
         colors: countBy(facetRows('color'), 'colors'),
         sizes: countBy(facetRows('size'), 'sizes'),
+        specs: specFacets,
         price: priceRows.length
           ? { min: Math.floor(Math.min(...priceRows.map(r => r.sell))), max: Math.ceil(Math.max(...priceRows.map(r => r.sell))) }
           : { min: 0, max: 0 },
@@ -241,9 +270,9 @@ exports.getSuggestions = (req, res) => {
 
     const { where, params } = buildFilters({ search: q });
     const products = db.prepare(`
-      SELECT id, name, brand, category, subcategory, price, discount_percent, images
+      SELECT id, name, brand, category, subcategory, price, discount_percent, images, specs
       FROM products WHERE ${where} ORDER BY rating_count DESC LIMIT 6
-    `).all(...params).map(p => ({ ...p, image: JSON.parse(p.images || '[]')[0] || null, images: undefined }));
+    `).all(...params).map(p => ({ ...p, image: JSON.parse(p.images || '[]')[0] || null, images: undefined, specs: undefined }));
 
     const like = `%${normalizeTerm(q)}%`;
     const categories = db.prepare(`

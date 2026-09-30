@@ -4,7 +4,7 @@ import api from '../utils/api';
 export const CatalogContext = createContext({ categories: [], loading: true });
 
 // Display order for the top-level categories
-export const CATEGORY_ORDER = ['Men', 'Women', 'Kids', 'Home & Living', 'Electronics', 'Beauty', 'Sports'];
+export const CATEGORY_ORDER = ['Mobiles', 'Tablets', 'Laptops', 'TVs', 'Cameras', 'Accessories', 'Refrigerators', 'Air Conditioners', 'Home Appliances'];
 
 export const CatalogProvider = ({ children }) => {
   const [categories, setCategories] = useState([]);

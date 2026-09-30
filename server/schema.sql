@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS products (
   colors TEXT, -- JSON array
   sizes TEXT, -- JSON array
   images TEXT, -- JSON array
+  specs TEXT, -- JSON object, e.g. {"RAM":"8 GB"}
   is_active INTEGER DEFAULT 1,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -72,6 +73,8 @@ CREATE TABLE IF NOT EXISTS orders (
   payment_ref TEXT,
   coupon_code TEXT,
   delivery_fee REAL DEFAULT 0,
+  courier TEXT,
+  tracking_number TEXT,
   address_snapshot TEXT, -- JSON object
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME,
@@ -133,3 +136,27 @@ CREATE TABLE IF NOT EXISTS offers (
   ends_at DATETIME,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Every status change of an order, shown as the tracking timeline
+CREATE TABLE IF NOT EXISTS order_status_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id INTEGER NOT NULL,
+  status TEXT NOT NULL,
+  note TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+);
+
+-- Stock ledger: every change to a product's stock and why
+CREATE TABLE IF NOT EXISTS inventory_movements (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id INTEGER NOT NULL,
+  change INTEGER NOT NULL,
+  stock_after INTEGER NOT NULL,
+  reason TEXT NOT NULL,
+  reference TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_history_order ON order_status_history (order_id);
+CREATE INDEX IF NOT EXISTS idx_movements_product ON inventory_movements (product_id);

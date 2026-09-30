@@ -1,151 +1,52 @@
-# StyleHub
+# ElectroHub
 
-StyleHub is a premium, fully-responsive, Myntra-inspired fashion e-commerce web application. Built as a monorepo, it features a React.js (Vite) frontend with Tailwind CSS and a Node.js/Express backend powered by a SQLite database.
+An electronics shopping platform (mobiles, tablets & iPads, laptops, TVs, cameras, accessories such as headphones, smartwatches, power banks & adapters, refrigerators, air conditioners and home appliances) with product specifications, category and specification filters, cart, orders, order tracking and inventory management.
 
-## 🚀 Features
+**Stack:** React (Vite) + Tailwind CSS · Node.js/Express REST API · SQLite (better-sqlite3) · JWT auth
 
-- **Authentication System:** Secure registration and login using JWT and bcrypt.
-- **Dynamic Product Catalog:** Real-time search autocomplete, category filtering, trending products, and new arrivals.
-- **Shopping Bag & Wishlist:** Fully integrated cart and wishlist with stock validation, coupon application, and immediate cross-synchronization.
-- **Multi-Step Checkout:** Seamless address selection and simulated payment processing (Card, UPI, COD).
-- **User Profiles & Orders:** Complete order history with visual status, and manageable user profiles.
-- **Responsive Design:** A premium UI built with Tailwind CSS that works beautifully on mobile, tablet, and desktop.
-- **Interactive UI:** Micro-animations, toast notifications, loading states, and skeleton loaders.
+## Run
 
-## 🛠 Tech Stack
-
-**Frontend:**
-- React 18 (Vite)
-- React Router DOM
-- Tailwind CSS
-- Context API (State Management)
-- Axios (HTTP Client)
-- Lucide React (Icons)
-- React Hot Toast (Notifications)
-
-**Backend:**
-- Node.js & Express.js
-- Better-SQLite3 (Database)
-- JSON Web Token (JWT)
-- Bcrypt.js (Password Hashing)
-- Helmet & Morgan & Express-Rate-Limit (Security & Logging)
-
-## 📁 Folder Structure
-
-```text
-stylehub/
-├── client/                     # React Frontend
-│   ├── public/                 # Static assets
-│   ├── src/
-│   │   ├── components/         # Reusable UI components (Navbar, Footer, ProtectedRoute, etc.)
-│   │   ├── context/            # Context API files (Auth, Cart, Wishlist)
-│   │   ├── pages/              # Route pages (Home, Login, Register, Cart, etc.)
-│   │   ├── utils/              # Helper utilities (Axios api instance)
-│   │   ├── App.jsx             # Main Router and Providers
-│   │   ├── main.jsx            # Entry point
-│   │   └── index.css           # Global Tailwind CSS
-│   ├── package.json
-│   ├── tailwind.config.js      # Tailwind v4 configuration
-│   └── vite.config.js          # Vite config (includes proxy to backend)
-├── server/                     # Node.js Backend
-│   ├── controllers/            # Route handler logic (auth, products, cart, etc.)
-│   ├── middleware/             # Express middlewares (auth protection)
-│   ├── routes/                 # API route definitions
-│   ├── utils/                  # Helper utilities (Standardized JSON responses)
-│   ├── db.js                   # Database connection setup
-│   ├── schema.sql              # SQLite schema definitions
-│   ├── seed.js                 # Database seeder (65+ products, coupons, user)
-│   ├── server.js               # Main Express application
-│   ├── package.json
-│   └── .env.example
-├── README.md                   # Project documentation
-├── start.bat                   # Windows startup script
-└── start.sh                    # Mac/Linux startup script
-```
-
-## 📋 Prerequisites
-
-- **Node.js** (v18.x or v20.x recommended)
-- **npm** (comes with Node.js)
-
-## ⚙️ Setup and Run Instructions
-
-### Option 1: Automated (Recommended)
-You can launch the entire application with a single click or command. The startup script checks for dependencies, installs them if missing, seeds the database automatically, boots both servers, and opens your browser.
-
-**For Windows:**
-Double-click the `start.bat` file in the root directory, or run in terminal:
 ```bash
-./start.bat
+./start.bat          # Windows (installs, seeds and starts everything)
 ```
+or manually: `cd server && npm install && npm run seed && npm run dev`, then `cd client && npm install && npm run dev`, and open http://localhost:5173.
 
-**For Mac/Linux:**
-```bash
-chmod +x start.sh
-./start.sh
-```
+| Account | Email | Password |
+|---|---|---|
+| Admin (panel at `/admin`) | admin@electrohub.com | Admin@123 |
+| Customer | demo@electrohub.com | Demo@123 |
 
-### Option 2: Manual Setup
+Set your UPI ID in `server/config/payment.js`. Add `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` to `server/.env` to enable card payments.
 
-1. **Install Dependencies**
-   ```bash
-   cd client && npm install
-   cd ../server && npm install
-   ```
+## Features
+- **Catalog:** 238 products across 9 categories with full specifications (RAM, storage, screen size, capacity, energy rating…)
+- **Filters:** category, subcategory, brand, price, discount, rating and **specification filters** generated from each category's specs
+- **Login / register** with JWT; customer and admin roles
+- **Cart, coupons, checkout** with UPI QR, card (Razorpay) and cash on delivery
+- **Orders & tracking:** status timeline with dates, courier and tracking number; public tracking page at `/track`
+- **Inventory:** stock ledger for every sale, cancellation, restock and edit; low/out-of-stock views and quick restock in the admin panel
+- **Admin panel:** products, inventory, orders, coupons and home-page offers
 
-2. **Configure Environment Variables**
-   Inside the `server` directory, rename `.env.example` to `.env`. (By default, `PORT=5000` and `JWT_SECRET` are set).
+## REST API (base `/api`)
 
-3. **Seed Database**
-   Generate the SQLite database and populate it with initial data.
-   ```bash
-   cd server
-   npm run seed
-   ```
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| POST | `/auth/register`, `/auth/login` | Create account / log in (returns JWT) | – |
+| GET/PUT | `/auth/me` | Get / update profile | User |
+| GET | `/products` | List with filters: `category, subcategory, brand, minPrice, maxPrice, discount, minRating, search, sort, page, limit, spec_<Name>` (e.g. `spec_RAM=8 GB,12 GB`). Returns products, pagination and facets (incl. `facets.specs`) | – |
+| GET | `/products/:id` | Product with specs, reviews and rating summary | – |
+| GET | `/products/categories`, `/products/suggestions?q=` | Category tree / search suggestions | – |
+| GET | `/products/trending`, `/new-arrivals`, `/deals`, `/top-rated` | Curated lists | – |
+| GET/POST/PUT/DELETE | `/cart`, `/cart/:itemId` | Cart | User |
+| GET/POST/DELETE | `/wishlist/:productId` | Wishlist | User |
+| GET/POST/PUT/DELETE | `/addresses/:id` | Saved addresses | User |
+| GET · POST | `/coupons` · `/coupons/apply` | Available coupons / validate a coupon | – · User |
+| POST · GET | `/orders` · `/orders`, `/orders/:id` | Place order / my orders (with tracking history) | User |
+| PUT | `/orders/:id/cancel` | Cancel (restocks items) | User |
+| GET | `/orders/track?orderId=&email=` | Public order tracking | – |
+| GET · POST | `/payments/config` · `/payments/upi/:orderId/confirm` | Payment options / submit UPI reference | – · User |
+| GET/POST/PUT/DELETE | `/admin/products`, `/admin/coupons`, `/admin/offers`, `/admin/orders` | Admin CRUD | Admin |
+| GET · POST | `/admin/inventory/summary`, `/admin/inventory/movements` · `/admin/inventory/:id/adjust` | Stock overview, ledger, restock | Admin |
 
-4. **Start the Servers**
-   Open two separate terminal windows:
-   - **Terminal 1 (Backend):** `cd server && npm run dev`
-   - **Terminal 2 (Frontend):** `cd client && npm run dev`
-
-5. **View Application**
-   Open your browser to [http://localhost:5173](http://localhost:5173).
-
-## 🔑 Demo Credentials
-
-- **Email:** `demo@stylehub.com`
-- **Password:** `Demo@123`
-
-## 🔌 API Endpoint Reference
-
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| **POST** | `/api/auth/login` | Authenticate user & receive JWT | ❌ |
-| **POST** | `/api/auth/register` | Create a new user account | ❌ |
-| **GET** | `/api/auth/me` | Get logged-in user profile | ✅ |
-| **GET** | `/api/products` | Get products (search, filter, pagination) | ❌ |
-| **GET** | `/api/products/:id` | Get product details & reviews | ❌ |
-| **GET** | `/api/products/suggestions`| Live search autocomplete | ❌ |
-| **GET** | `/api/cart` | Get current user's cart | ✅ |
-| **POST** | `/api/cart` | Add item to cart | ✅ |
-| **GET** | `/api/wishlist` | Get user's wishlist | ✅ |
-| **POST** | `/api/coupons/apply` | Apply coupon code (e.g. `WELCOME10`) | ✅ |
-| **POST** | `/api/orders` | Checkout cart to create an order | ✅ |
-| **GET** | `/api/orders` | Get user's order history | ✅ |
-
-## 🗄️ Database Schema Overview
-
-StyleHub uses an embedded SQLite database (`better-sqlite3`).
-- **users:** id, name, email, password_hash, phone, gender
-- **products:** id, name, brand, category, price, discount_percent, rating, stock, images
-- **cart_items / wishlist_items:** maps user to products
-- **addresses:** shipping locations for users
-- **orders / order_items:** snapshot of purchased products and financial summaries
-- **coupons / reviews:** promotional codes and user ratings
-
-## 🔮 Future Improvements
-
-- Fully functional Product Listing page with deep filtering logic mapped to the UI.
-- Comprehensive Admin Dashboard for inventory management.
-- Implementation of a real payment gateway (Stripe/Razorpay).
-- Email notifications for order confirmations.
+## Database (SQLite)
+`users`, `products` (with JSON `specs`), `cart_items`, `wishlist_items`, `addresses`, `orders`, `order_items`, `order_status_history` (tracking), `inventory_movements` (stock ledger), `coupons`, `offers`, `reviews`.

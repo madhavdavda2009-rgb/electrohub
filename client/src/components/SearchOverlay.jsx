@@ -8,7 +8,7 @@ import { CatalogContext, categoryPath } from '../context/CatalogContext';
 import { getRecentSearches, addRecentSearch, clearRecentSearches } from '../utils/storage';
 import { formatPrice, sellingPrice } from '../utils/format';
 
-const TRENDING = ['Sneakers', 'Kurtis', 'Wireless earbuds', 'Smartwatch', 'Sunglasses', 'Scented candle', 'Oversized t-shirt', 'Phone case'];
+const TRENDING = ['iPhone', 'iPad', 'Gaming laptop', 'Headphones', 'Smartwatch', 'Power bank', 'Fast charger', '4K TV', 'Inverter AC', 'Washing machine'];
 
 const SpeechRecognition = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
 

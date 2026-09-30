@@ -9,12 +9,12 @@ const AuthLayout = ({ image, heading, subheading, children }) => (
         <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/10" />
         <div className="absolute inset-x-0 bottom-0 p-10 text-white">
-          <Link to="/" className="font-display text-2xl font-bold">StyleHub.</Link>
+          <Link to="/" className="font-display text-2xl font-bold">ElectroHub.</Link>
           <h2 className="mt-6 font-display text-4xl font-semibold leading-tight">{heading}</h2>
           <p className="mt-2 text-white/85">{subheading}</p>
           <ul className="mt-8 space-y-2.5 text-sm font-semibold">
             <li className="flex items-center gap-2"><Truck size={16} /> Free delivery above ₹999</li>
-            <li className="flex items-center gap-2"><RotateCcw size={16} /> Easy 14-day returns</li>
+            <li className="flex items-center gap-2"><RotateCcw size={16} /> Brand warranty & 7-day replacement</li>
             <li className="flex items-center gap-2"><ScanSearch size={16} /> Shop with a photo</li>
           </ul>
         </div>

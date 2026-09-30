@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { AuthContext } from '../context/AuthContext';
 import AuthLayout from '../components/AuthLayout';
 
-const DEMO = { email: 'demo@stylehub.com', password: 'Demo@123' };
+const DEMO = { email: 'demo@electrohub.com', password: 'Demo@123' };
 
 const Login = () => {
   const [email, setEmail] = useState('');

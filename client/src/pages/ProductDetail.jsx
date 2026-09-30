@@ -303,7 +303,7 @@ const ProductDetail = () => {
       <div className="grid gap-8 md:grid-cols-[1.15fr_1fr] lg:gap-14">
         <Gallery images={product.images} name={product.name} />
 
-        <div className="md:sticky md:top-24 md:self-start">
+        <div className="md:sticky md:top-24 md:self-start lg:top-36">
           <div className="flex items-start justify-between gap-4">
             <div>
               <Link to={`/products?brand=${encodeURIComponent(product.brand)}`} className="eyebrow hover:underline">{product.brand}</Link>
@@ -372,8 +372,8 @@ const ProductDetail = () => {
               </ul>
             )}
             <ul className="mt-4 grid grid-cols-3 gap-2 border-t border-line pt-4 text-center text-xs font-semibold text-muted">
-              <li className="flex flex-col items-center gap-1"><ShieldCheck size={20} className="text-fg" /> 100% original</li>
-              <li className="flex flex-col items-center gap-1"><RotateCcw size={20} className="text-fg" /> 14-day returns</li>
+              <li className="flex flex-col items-center gap-1"><ShieldCheck size={20} className="text-fg" /> Brand warranty</li>
+              <li className="flex flex-col items-center gap-1"><RotateCcw size={20} className="text-fg" /> 7-day replacement</li>
               <li className="flex flex-col items-center gap-1"><Truck size={20} className="text-fg" /> Free over ₹999</li>
             </ul>
           </div>
@@ -398,12 +398,29 @@ const ProductDetail = () => {
             </div>
           )}
 
+          {/* Specifications */}
+          {Object.keys(product.specs || {}).length > 0 && (
+            <div className="mt-7 border-t border-line pt-6">
+              <p className="text-sm font-extrabold uppercase tracking-wider">Specifications</p>
+              <table className="mt-3 w-full overflow-hidden rounded-2xl text-sm">
+                <tbody>
+                  {Object.entries(product.specs).map(([k, v], i) => (
+                    <tr key={k} className={i % 2 ? '' : 'bg-surface-2'}>
+                      <th scope="row" className="w-2/5 px-3 py-2.5 text-left font-semibold text-muted">{k}</th>
+                      <td className="px-3 py-2.5 font-bold">{v}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
           {/* Details */}
           <div className="mt-7 border-t border-line pt-6">
             <p className="text-sm font-extrabold uppercase tracking-wider">Product details</p>
             <p className="mt-3 text-sm leading-relaxed text-muted">{product.description}</p>
             <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-              {[['Brand', product.brand], ['Category', product.subcategory], ['Colour', product.colors.join(', ') || '—'], ['Sizes', product.sizes.join(', ') || 'One size'], ['Ideal for', product.gender], ['SKU', `SH-${String(product.id).padStart(5, '0')}`]].map(([k, v]) => (
+              {[['Brand', product.brand], ['Category', `${product.category} · ${product.subcategory}`], ['Colour', product.colors.join(', ') || '—'], ['SKU', `EH-${String(product.id).padStart(5, '0')}`]].map(([k, v]) => (
                 <div key={k} className="border-b border-line pb-2">
                   <dt className="text-xs text-muted">{k}</dt>
                   <dd className="font-semibold">{v}</dd>

@@ -24,6 +24,10 @@ router.post('/offers', admin.createOffer);
 router.put('/offers/:id', admin.updateOffer);
 router.delete('/offers/:id', admin.deleteOffer);
 
+router.get('/inventory/summary', admin.getInventorySummary);
+router.get('/inventory/movements', admin.listMovements);
+router.post('/inventory/:id/adjust', admin.adjustInventory);
+
 router.get('/orders', admin.listOrders);
 router.put('/orders/:id', admin.updateOrder);
 router.delete('/orders/:id', admin.deleteOrder);

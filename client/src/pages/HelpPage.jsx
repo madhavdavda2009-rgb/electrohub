@@ -8,13 +8,15 @@ const PAGES = {
     body: [
       ['Customer care', 'Email support@stylehub.example or call 1800-000-0000 (toll free), 24x7.'],
       ['Order questions', 'For anything about an existing order, open My Orders and use the order number when you get in touch. It helps us find your order quickly.'],
-      ['Corporate office', 'StyleHub Retail Pvt. Ltd., 12 MG Road, Bengaluru 560001.'],
+      ['Corporate office', 'ElectroHub Retail Pvt. Ltd., 12 MG Road, Bengaluru 560001.'],
     ],
   },
   faq: {
     title: 'Frequently asked questions',
     body: [
-      ['How do I search with a photo?', 'Tap the camera icon in the search bar. Take a photo or choose one from your gallery, and StyleHub recognises the item and its colour and shows similar products. The photo is analysed on your device and never uploaded.'],
+      ['How do I compare specifications?', 'Open any category and use the Specifications filters (RAM, storage, screen size, capacity, energy rating and more) to narrow down products. Every product page lists its full specifications.'],
+      ['How do I track my order?', 'Use Track order in the footer with your order number and email, or open My Orders to see every status update with dates.'],
+      ['How do I search with a photo?', 'Tap the camera icon in the search bar. Take a photo or choose one from your gallery, and ElectroHub recognises the product type and shows similar models. The photo is analysed on your device and never uploaded.'],
       ['How do coupons work?', 'Enter a code such as WELCOME10 in your bag. The discount is checked against your bag total and applied at checkout.'],
       ['Can I cancel an order?', 'Yes. Orders that have not shipped yet can be cancelled from My Orders.'],
       ['Is cash on delivery available?', 'Yes, you can pick Cash on Delivery at checkout.'],
@@ -32,15 +34,16 @@ const PAGES = {
   returns: {
     title: 'Returns & exchanges',
     body: [
-      ['14-day returns', 'Most items can be returned or exchanged within 14 days of delivery, unused and with original tags.'],
-      ['Non-returnable items', 'Innerwear, beauty products that have been opened, and personalised items cannot be returned for hygiene reasons.'],
+      ['7-day replacement', 'Damaged, defective or wrong items can be replaced within 7 days of delivery. Keep the original box and accessories.'],
+      ['Brand warranty', 'Every product carries the manufacturer warranty shown on its page. Keep your invoice for warranty claims.'],
+      ['Installation', 'ACs, washing machines and large TVs include free installation by the brand within 48 hours of delivery.'],
       ['Refunds', 'Refunds go back to your original payment method within 5-7 business days after pickup.'],
     ],
   },
   terms: {
     title: 'Terms of use',
     body: [
-      ['Demo store', 'StyleHub is a demonstration store. No real payments are taken and no products are shipped.'],
+      ['Demo store', 'ElectroHub is a demonstration store. No real payments are taken and no products are shipped.'],
       ['Accounts', 'You are responsible for keeping your password safe and for activity on your account.'],
       ['Pricing', 'Prices and offers can change without notice. The price at the time of order is the price you pay.'],
     ],
